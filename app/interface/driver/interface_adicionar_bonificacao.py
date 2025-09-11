@@ -157,3 +157,4 @@ class InterfaceAdicionarBonificacao:
         from app.interface.driver.interface_visualizar_editar_motorista import InterfaceVisualizarEditar
         interface = InterfaceVisualizarEditar(self.parent, self.db_path)
         interface.show()
+
