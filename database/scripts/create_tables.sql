@@ -70,20 +70,29 @@ CREATE TABLE IF NOT EXISTS StudentPayment (
     Receipt BLOB,
     PaymentDate DATE NOT NULL,
     Amount REAL NOT NULL,
-    Paid INTEGER NOT NULL,
+    Paid SMALLINT NOT NULL,
     ExtraInfo VARCHAR(255),
     FOREIGN KEY (StudentID) REFERENCES Student(StudentID)
 );
 
 -- Criando a tabela ExtraPayment
-CREATE TABLE IF NOT EXISTS ExtraPayment (
+CREATE TABLE IF NOT EXISTS RouteExtraPayment (
     ExtraPaymentID INTEGER PRIMARY KEY,
     RouteID INTEGER NOT NULL,
     PaymentDate DATE NOT NULL,
     Amount REAL NOT NULL,
     Receipt BLOB,
     Description VARCHAR(255),
-    Paid SMALLINT NOT NULL,
+    FOREIGN KEY (RouteID) REFERENCES Route(RouteID)
+);
+
+CREATE TABLE IF NOT EXISTS RouteExpensePayment (
+    ExpensePaymentID INTEGER PRIMARY KEY,
+    RouteID INTEGER NOT NULL,
+    PaymentDate DATE NOT NULL,
+    Amount REAL NOT NULL,
+    Receipt BLOB,
+    Description VARCHAR(255),
     FOREIGN KEY (RouteID) REFERENCES Route(RouteID)
 );
 
@@ -149,7 +158,7 @@ CREATE TABLE IF NOT EXISTS RouteDriver (
 );
 
 -- Criando a tabela Bonus
-CREATE TABLE IF NOT EXISTS Bonus (
+CREATE TABLE IF NOT EXISTS DriverBonus (
     BonusID INTEGER PRIMARY KEY,
     DriverID INTEGER NOT NULL,
     Description VARCHAR(255),

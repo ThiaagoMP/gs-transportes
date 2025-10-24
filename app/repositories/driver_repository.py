@@ -55,13 +55,23 @@ class DriverRepository:
         return None
 
     def update(self, driver: Driver) -> bool:
-        sql = '''UPDATE Driver SET Name = ?, Salary = ?, Contact = ?, StartDate = ?, EndDate = ?, CPF = ?, RG = ?, CNH = ?, ExtraInfo = ?
+        sql = '''UPDATE Driver \
+                 SET Name      = ?, \
+                     Salary    = ?, \
+                     Contact   = ?, \
+                     StartDate = ?, \
+                     EndDate   = ?, \
+                     CPF       = ?, \
+                     RG        = ?, \
+                     CNH       = ?, \
+                     ExtraInfo = ?
                  WHERE DriverID = ?'''
         conn = create_connection(self.db_file)
         if conn:
             try:
                 cursor = conn.cursor()
-                cursor.execute(sql, (*driver.to_tuple(), driver.driver_id))
+                to_tuple = driver.to_tuple()
+                cursor.execute(sql, (*to_tuple, driver.driver_id))
                 conn.commit()
                 return cursor.rowcount > 0
             except sqlite3.Error as e:

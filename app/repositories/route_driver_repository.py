@@ -1,72 +1,54 @@
 import sqlite3
-from typing import List, Optional
-from models.route_driver import RouteDriver
-from database import create_connection
+from typing import Optional, List
+from app.database import create_connection
+from app.models.route_driver import RouteDriver
 
 class RouteDriverRepository:
     def __init__(self, db_file: str):
         self.db_file = db_file
 
-    def add(self, route_driver: RouteDriver) -> bool:
+    def add(self, route_driver: RouteDriver) -> Optional[int]:
         sql = '''INSERT INTO RouteDriver (RouteID, DriverID)
                  VALUES (?, ?)'''
         conn = create_connection(self.db_file)
         if conn:
             try:
                 cursor = conn.cursor()
-                cursor.execute(sql, route_driver.to_tuple())
+                cursor.execute(sql, (route_driver.route_id, route_driver.driver_id))
                 conn.commit()
-                return True
+                return cursor.lastrowid
             except sqlite3.Error as e:
-                print(f"Erro ao adicionar relação rota-motorista: {e}")
-            finally:
-                conn.close()
-        return False
-
-    def get_all(self) -> List[RouteDriver]:
-        sql = '''SELECT * FROM RouteDriver'''
-        conn = create_connection(self.db_file)
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute(sql)
-                rows = cursor.fetchall()
-                return [RouteDriver.from_db_row(row) for row in rows]
-            except sqlite3.Error as e:
-                print(f"Erro ao listar relações rota-motorista: {e}")
-            finally:
-                conn.close()
-        return []
-
-    def get_by_ids(self, route_id: int, driver_id: int) -> Optional[RouteDriver]:
-        sql = '''SELECT * FROM RouteDriver WHERE RouteID = ? AND DriverID = ?'''
-        conn = create_connection(self.db_file)
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute(sql, (route_id, driver_id))
-                row = cursor.fetchone()
-                return RouteDriver.from_db_row(row) if row else None
-            except sqlite3.Error as e:
-                print(f"Erro ao buscar relação rota-motorista: {e}")
+                print(f"Erro ao adicionar motorista à linha: {e}")
             finally:
                 conn.close()
         return None
 
-    def update(self, route_driver: RouteDriver) -> bool:
-        return False  # Não há campos para atualizar, apenas chaves primárias
-
-    def delete(self, route_id: int, driver_id: int) -> bool:
-        sql = '''DELETE FROM RouteDriver WHERE RouteID = ? AND DriverID = ?'''
+    def get_by_route_id(self, route_id: int) -> List[RouteDriver]:
+        sql = '''SELECT RouteID, DriverID FROM RouteDriver WHERE RouteID = ?'''
         conn = create_connection(self.db_file)
         if conn:
             try:
                 cursor = conn.cursor()
-                cursor.execute(sql, (route_id, driver_id))
+                cursor.execute(sql, (route_id,))
+                rows = cursor.fetchall()
+                return [RouteDriver(row[0], row[1]) for row in rows]
+            except sqlite3.Error as e:
+                print(f"Erro ao buscar motoristas: {e}")
+            finally:
+                conn.close()
+        return []
+
+    def delete_by_route_id(self, route_id: int) -> bool:
+        sql = '''DELETE FROM RouteDriver WHERE RouteID = ?'''
+        conn = create_connection(self.db_file)
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute(sql, (route_id,))
                 conn.commit()
                 return cursor.rowcount > 0
             except sqlite3.Error as e:
-                print(f"Erro ao deletar relação rota-motorista: {e}")
+                print(f"Erro ao deletar associações: {e}")
             finally:
                 conn.close()
         return False

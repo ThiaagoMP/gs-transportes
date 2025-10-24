@@ -1,7 +1,7 @@
 import sqlite3
 from typing import List, Optional
-from models.maintenance import Maintenance
-from database import create_connection
+from app.models.maintenance import Maintenance
+from app.database import create_connection
 
 class MaintenanceRepository:
     def __init__(self, db_file: str):

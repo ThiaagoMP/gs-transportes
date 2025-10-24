@@ -1,7 +1,8 @@
 import sqlite3
 from typing import List, Optional
-from models.vehicle import Vehicle
-from database import create_connection
+
+from app.database import create_connection
+from app.models.vehicle import Vehicle
 
 class VehicleRepository:
     def __init__(self, db_file: str):
@@ -14,17 +15,14 @@ class VehicleRepository:
         if conn:
             try:
                 cursor = conn.cursor()
-                # Validar o tuple antes de executar
                 tuple_data = vehicle.to_tuple()
                 expected_length = 10
                 if len(tuple_data) != expected_length:
                     print(f"ERRO: Número incorreto de valores no tuple. Esperado {expected_length}, recebido {len(tuple_data)}: {tuple_data}")
                     return None
-                print(f"DEBUG: Tentando adicionar veículo com tuple: {tuple_data}")
                 cursor.execute(sql, tuple_data)
                 conn.commit()
                 last_id = cursor.lastrowid
-                print(f"DEBUG: Veículo adicionado com ID: {last_id}")
                 return last_id
             except sqlite3.Error as e:
                 print(f"ERRO ao adicionar veículo: {e}")

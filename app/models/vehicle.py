@@ -17,17 +17,17 @@ class Vehicle:
     def from_db_row(row):
         if row:
             return Vehicle(
-                row[0],  # VehicleID
-                row[1],  # AvgKmPerLiter
-                row[2],  # LicensePlate
-                row[3],  # Seats
-                row[4],  # FuelTankSize
-                row[5],  # Name
-                row[6],  # BuyDate
-                row[7],  # SellDate
-                row[8],  # PurchaseValue
-                row[9],  # SaleValue
-                row[10]  # ManufacturingYear
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+                row[4],
+                row[5],
+                row[6],
+                row[7],
+                row[8],
+                row[9],
+                row[10]
             )
         return None
 

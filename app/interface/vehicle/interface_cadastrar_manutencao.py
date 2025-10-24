@@ -2,11 +2,12 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from datetime import datetime
-from tkcalendar import DateEntry
 from app.repositories.maintenance_repository import MaintenanceRepository
 from app.models.maintenance import Maintenance
 from tkinter.filedialog import askopenfilename
 import sqlite3
+from app.components.custom_calendar import CustomCalendar
+from app.components.list_rounded_button import ListRoundedButton
 
 def add_placeholder(entry: ttk.Entry, placeholder: str):
     entry._ph_text = placeholder
@@ -59,12 +60,22 @@ def get_entry_value(entry: ttk.Entry) -> str:
         return ""
     return text
 
-class InterfaceCadastrarManutencao:
+class InterfaceAddMaintence:
     def __init__(self, parent, db_path, vehicle_id):
         self.parent = parent
         self.db_path = db_path
         self.vehicle_id = vehicle_id
         self.maintenance_repo = MaintenanceRepository(self.db_path)
+
+        self.bg_main = "#1c1c1e"
+        self.bg_button = "#3a3f47"
+        self.fg_text = "#ffffff"
+        self.accent = "#ff7f32"
+
+        self.font_title = ("Segoe UI", 26, "bold")
+        self.font_label = ("Segoe UI", 14)
+        self.font_entry = ("Segoe UI", 12)
+        self.font_button = ("Segoe UI", 10)
 
     @staticmethod
     def validate_input(P, field, max_length):
@@ -99,109 +110,114 @@ class InterfaceCadastrarManutencao:
         tk.Label(
             self.parent,
             text="Cadastrar Manutenção",
-            font=("Segoe UI", 20, "bold"),
-            bg="#ffffff",
-            fg="#1976d2"
+            font=self.font_title,
+            bg=self.bg_main,
+            fg=self.accent
         ).pack(pady=25)
 
-        main_frame = tk.Frame(self.parent, bg="#ffffff")
-        main_frame.pack(padx=30, pady=10, fill="both", expand=True)
+        main_frame = tk.Frame(self.parent, bg=self.bg_main, width=800)
+        main_frame.pack(padx=30, pady=10, anchor="center")
 
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("TLabel", font=("Segoe UI", 14), background="#ffffff")
-        style.configure("TEntry", font=("Segoe UI", 12), padding=6)
-        style.configure("TButton", font=("Segoe UI", 12, "bold"), padding=10,
-                        background="#4CAF50", foreground="#ffffff")
+        style.configure("TLabel", font=self.font_label, background=self.bg_main, foreground=self.fg_text)
+        style.configure("TEntry", font=self.font_entry, padding=6, fieldbackground=self.bg_button, foreground=self.fg_text)
+        style.configure("TButton", font=self.font_button, padding=10,
+                        background=self.bg_button, foreground=self.fg_text)
         style.map("TButton",
-                  background=[("active", "#45a049")],
-                  foreground=[("active", "#ffffff")])
-        style.configure("my.DateEntry", fieldbackground="#e0e0e0", background="#1976d2", foreground="#ffffff")
+                  background=[("active", self.accent)],
+                  foreground=[("active", self.fg_text)])
         style.configure("Placeholder.TEntry", foreground="#7a7a7a")
+        style.configure("Large.TCheckbutton", background=self.bg_main, foreground=self.fg_text, font=("Segoe UI", 18))
 
-        validate_cmd = self.parent.register(InterfaceCadastrarManutencao.validate_input)
-        validate_decimal = self.parent.register(InterfaceCadastrarManutencao.validate_decimal)
-        validate_number = self.parent.register(InterfaceCadastrarManutencao.validate_number)
+        validate_cmd = self.parent.register(InterfaceAddMaintence.validate_input)
+        validate_decimal = self.parent.register(InterfaceAddMaintence.validate_decimal)
+        validate_number = self.parent.register(InterfaceAddMaintence.validate_number)
 
-        # Linha 0: Prestador de Serviço
         ttk.Label(main_frame, text="Prestador de Serviço*:").grid(row=0, column=0, sticky="e", padx=(0, 10), pady=10)
-        service_provider_entry = ttk.Entry(main_frame, width=45, validate="key",
+        service_provider_entry = ttk.Entry(main_frame, width=64, validate="key",
                                           validatecommand=(validate_cmd, "%P", "name", 50))
         service_provider_entry.grid(row=0, column=1, sticky="w", padx=(0, 10), pady=10)
         add_placeholder(service_provider_entry, "Ex.: Oficina XYZ")
 
-        # Linha 1: Data Início
         ttk.Label(main_frame, text="Data Início*:").grid(row=1, column=0, sticky="e", padx=(0, 10), pady=10)
-        start_date_entry = DateEntry(main_frame, width=43, date_pattern="dd/mm/yyyy", style="my.DateEntry")
-        start_date_entry.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=10)
-        today = datetime.now().strftime('%d/%m/%Y')  # 09/09/2025
-        start_date_entry.set_date(today)
+        start_date_frame = tk.Frame(main_frame, bg=self.bg_main)
+        start_date_frame.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=10)
+        start_date_entry = tk.Entry(start_date_frame, width=55, font=self.font_entry, bg=self.bg_button, fg=self.fg_text, insertbackground=self.fg_text)
+        start_date_entry.pack(side="left", padx=5)
+        start_date_entry.insert(0, datetime.now().strftime('%d/%m/%Y'))
+        ListRoundedButton(start_date_frame, text="Selecionar Data", command=lambda: self.open_calendar(start_date_entry), bg=self.bg_button, fg=self.fg_text, font=self.font_button).pack(side="left", padx=5)
 
-        # Linha 2: Data Fim
         ttk.Label(main_frame, text="Data Fim*:").grid(row=2, column=0, sticky="e", padx=(0, 10), pady=10)
-        end_date_entry = DateEntry(main_frame, width=43, date_pattern="dd/mm/yyyy", style="my.DateEntry")
-        end_date_entry.grid(row=2, column=1, sticky="w", padx=(0, 10), pady=10)
-        end_date_entry.set_date(today)
+        end_date_frame = tk.Frame(main_frame, bg=self.bg_main)
+        end_date_frame.grid(row=2, column=1, sticky="w", padx=(0, 10), pady=10)
+        end_date_entry = tk.Entry(end_date_frame, width=55, font=self.font_entry, bg=self.bg_button, fg=self.fg_text, insertbackground=self.fg_text)
+        end_date_entry.pack(side="left", padx=5)
+        end_date_entry.insert(0, datetime.now().strftime('%d/%m/%Y'))
+        ListRoundedButton(end_date_frame, text="Selecionar Data", command=lambda: self.open_calendar(end_date_entry), bg=self.bg_button, fg=self.fg_text, font=self.font_button).pack(side="left", padx=5)
 
-        # Linha 3: Descrição
         ttk.Label(main_frame, text="Descrição:").grid(row=3, column=0, sticky="e", padx=(0, 10), pady=10)
-        description_entry = ttk.Entry(main_frame, width=45, validate="key",
+        description_entry = ttk.Entry(main_frame, width=64, validate="key",
                                      validatecommand=(validate_cmd, "%P", "description", 255))
         description_entry.grid(row=3, column=1, sticky="w", padx=(0, 10), pady=10)
         add_placeholder(description_entry, "Ex.: Troca de óleo")
 
-        # Linha 4: Valor
         ttk.Label(main_frame, text="Valor*:").grid(row=4, column=0, sticky="e", padx=(0, 10), pady=10)
-        amount_entry = ttk.Entry(main_frame, width=45, validate="key",
+        amount_entry = ttk.Entry(main_frame, width=64, validate="key",
                                 validatecommand=(validate_decimal, "%P"))
         amount_entry.grid(row=4, column=1, sticky="w", padx=(0, 10), pady=10)
         add_placeholder(amount_entry, "Ex.: 500.00")
 
-        # Linha 5: Quilometragem
         ttk.Label(main_frame, text="Quilometragem (km)*:").grid(row=5, column=0, sticky="e", padx=(0, 10), pady=10)
-        km_traveled_entry = ttk.Entry(main_frame, width=45, validate="key",
+        km_traveled_entry = ttk.Entry(main_frame, width=64, validate="key",
                                       validatecommand=(validate_number, "%P"))
         km_traveled_entry.grid(row=5, column=1, sticky="w", padx=(0, 10), pady=10)
         add_placeholder(km_traveled_entry, "Ex.: 10000")
 
-        # Linha 6: Comprovante
         ttk.Label(main_frame, text="Comprovante:").grid(row=6, column=0, sticky="e", padx=(0, 10), pady=10)
-        receipt_frame = tk.Frame(main_frame, bg="#ffffff")
+        receipt_frame = tk.Frame(main_frame, bg=self.bg_main)
         receipt_frame.grid(row=6, column=1, sticky="w", padx=(0, 10), pady=10)
-        receipt_path_entry = ttk.Entry(receipt_frame, width=40, state="readonly")
-        receipt_path_entry.grid(row=0, column=0, padx=5, pady=5)
-        ttk.Button(receipt_frame, text="Selecionar", style="TButton",
-                   command=lambda: self.select_file(receipt_path_entry)).grid(row=0, column=1, padx=5, pady=5)
+        receipt_path_entry = ttk.Entry(receipt_frame, width=55, state="readonly", font=self.font_entry)
+        receipt_path_entry.grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        ListRoundedButton(receipt_frame, text="Selecionar", command=lambda: self.select_file(receipt_path_entry), bg=self.bg_button, fg=self.fg_text, font=self.font_button).grid(row=0, column=1, padx=5, pady=5)
 
-        # Linha 7: Preventiva
         ttk.Label(main_frame, text="Preventiva?*:").grid(row=7, column=0, sticky="e", padx=(0, 10), pady=10)
+        preventive_frame = tk.Frame(main_frame, bg=self.bg_main)
+        preventive_frame.grid(row=7, column=1, sticky="w", padx=(0, 10), pady=10)
         preventive_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(main_frame, variable=preventive_var).grid(row=7, column=1, sticky="w", padx=(0, 10), pady=10)
+        ttk.Checkbutton(preventive_frame, variable=preventive_var, style="Large.TCheckbutton").pack(side="left")
+        tk.Label(preventive_frame, text="Sim", font=self.font_label, bg=self.bg_main, fg=self.fg_text).pack(side="left", padx=(5, 0))
 
-        button_frame = tk.Frame(main_frame, bg="#ffffff")
+        button_frame = tk.Frame(main_frame, bg=self.bg_main)
         button_frame.grid(row=8, column=0, columnspan=2, pady=20)
 
-        ttk.Button(
+        ListRoundedButton(
             button_frame,
             text="Salvar",
-            style="TButton",
             command=lambda: self.save_maintenance(
                 service_provider_entry, start_date_entry, end_date_entry, description_entry,
                 amount_entry, km_traveled_entry, receipt_path_entry, preventive_var
-            )
+            ),
+            bg=self.bg_button, fg=self.fg_text, font=self.font_button
         ).pack(side="left", padx=5)
 
-        ttk.Button(
+        ListRoundedButton(
             button_frame,
             text="Voltar",
-            style="TButton",
-            command=self.back
+            command=self.back,
+            bg=self.bg_button, fg=self.fg_text, font=self.font_button
         ).pack(side="left", padx=5)
 
-        ttk.Label(main_frame, text="* Campos obrigatórios", font=("Segoe UI", 12, "italic")).grid(row=9, column=0, columnspan=2, pady=15)
+        ttk.Label(main_frame, text="* Campos obrigatórios", font=("Segoe UI", 12, "italic"), foreground=self.fg_text).grid(row=9, column=0, columnspan=2, pady=15)
+
+    def open_calendar(self, date_entry):
+        def callback(selected_date):
+            date_entry.delete(0, tk.END)
+            date_entry.insert(0, selected_date.strftime('%d/%m/%Y'))
+        CustomCalendar(self.parent, callback=callback, initial_date=datetime.now().date())
 
     def select_file(self, receipt_path_entry):
-        file_path = askopenfilename(filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")])
+        file_path = askopenfilename(filetypes=[("PDF", "*.pdf"), ("JPEG", "*.jpg"), ("PNG", "*.png")])
         if file_path:
             receipt_path_entry.config(state="normal")
             receipt_path_entry.delete(0, tk.END)
@@ -243,7 +259,6 @@ class InterfaceCadastrarManutencao:
             amount = float(amount)
             km_traveled = int(km_traveled)
 
-            # Ler o arquivo como binário se houver caminho
             receipt = None
             if receipt_path:
                 try:
@@ -266,6 +281,6 @@ class InterfaceCadastrarManutencao:
             messagebox.showerror("Erro", f"Erro ao cadastrar manutenção: {str(e)}")
 
     def back(self):
-        from app.interface.vehicle.interface_veiculo import InterfaceVeiculo
-        interface = InterfaceVeiculo(self.parent, self.db_path)
+        from app.interface.vehicle.interface_veiculo import InterfaceListVehicles
+        interface = InterfaceListVehicles(self.parent, self.db_path)
         interface.show()

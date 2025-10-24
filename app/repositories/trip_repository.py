@@ -1,7 +1,7 @@
 import sqlite3
 from typing import List, Optional
-from models.trip import Trip
-from database import create_connection
+from app.models.trip import Trip
+from app.database import create_connection
 
 class TripRepository:
     def __init__(self, db_file: str):

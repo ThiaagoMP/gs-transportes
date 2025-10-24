@@ -1,7 +1,7 @@
 import sqlite3
 from typing import List, Optional
-from models.trip_driver import TripDriver
-from database import create_connection
+from app.models.trip_driver import TripDriver
+from app.database import create_connection
 
 class TripDriverRepository:
     def __init__(self, db_file: str):
@@ -22,6 +22,23 @@ class TripDriverRepository:
             finally:
                 conn.close()
         return False
+
+    def get_by_trip_id(self, trip_id: int) -> List[TripDriver]:
+        sql = '''SELECT * \
+                 FROM TripDriver \
+                 WHERE TripID = ?'''
+        conn = create_connection(self.db_file)
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute(sql, (trip_id,))
+                rows = cursor.fetchall()
+                return [TripDriver.from_db_row(row) for row in rows]
+            except sqlite3.Error as e:
+                print(f"Erro ao buscar trip drivers: {e}")
+            finally:
+                conn.close()
+        return []
 
     def get_all(self) -> List[TripDriver]:
         sql = '''SELECT * FROM TripDriver'''
@@ -54,7 +71,7 @@ class TripDriverRepository:
         return None
 
     def update(self, trip_driver: TripDriver) -> bool:
-        return False  # Não há campos para atualizar, apenas chaves primárias
+        return False
 
     def delete(self, trip_id: int, driver_id: int) -> bool:
         sql = '''DELETE FROM TripDriver WHERE TripID = ? AND DriverID = ?'''

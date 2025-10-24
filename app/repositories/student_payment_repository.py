@@ -38,20 +38,22 @@ class StudentPaymentRepository:
                 conn.close()
         return []
 
-    def get_by_id(self, payment_id: int) -> Optional[StudentPayment]:
-        sql = '''SELECT * FROM StudentPayment WHERE StudentPaymentID = ?'''
+    def get_all_payments_by_student_id(self, student_id: int) -> List[StudentPayment]:
+        sql = '''SELECT * \
+                 FROM StudentPayment \
+                 WHERE StudentID = ?'''
         conn = create_connection(self.db_file)
         if conn:
             try:
                 cursor = conn.cursor()
-                cursor.execute(sql, (payment_id,))
-                row = cursor.fetchone()
-                return StudentPayment.from_db_row(row) if row else None
+                cursor.execute(sql, (student_id,))
+                rows = cursor.fetchall()
+                return [StudentPayment.from_db_row(row) for row in rows]
             except sqlite3.Error as e:
-                print(f"Erro ao buscar pagamento de aluno: {e}")
+                print(f"Erro ao buscar pagamentos de aluno: {e}")
             finally:
                 conn.close()
-        return None
+        return []
 
     def update(self, payment: StudentPayment) -> bool:
         sql = '''UPDATE StudentPayment SET StudentID = ?, Receipt = ?, PaymentDate = ?, Amount = ?, Paid = ?, ExtraInfo = ?
@@ -83,3 +85,21 @@ class StudentPaymentRepository:
             finally:
                 conn.close()
         return False
+
+    def get_by_id(self, payment_id: int) -> Optional[StudentPayment]:
+        sql = '''SELECT * 
+                 FROM StudentPayment 
+                 WHERE StudentPaymentID = ?'''
+        conn = create_connection(self.db_file)
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute(sql, (payment_id,))
+                row = cursor.fetchone()
+                if row:
+                    return StudentPayment.from_db_row(row)
+            except sqlite3.Error as e:
+                print(f"Erro ao buscar pagamento pelo ID: {e}")
+            finally:
+                conn.close()
+        return None
