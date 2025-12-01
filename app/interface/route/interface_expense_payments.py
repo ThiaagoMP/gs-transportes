@@ -39,8 +39,9 @@ class InterfaceRouteExpensePayments:
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
         main_frame.pack(padx=30, pady=10, fill="both", expand=True)
 
-        list_frame = tk.Frame(main_frame, bg=self.bg_main)
-        list_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # Container Treeview + Scrollbar
+        tree_container = tk.Frame(main_frame, bg=self.bg_main)
+        tree_container.pack(fill="both", expand=True, padx=10, pady=10)
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -57,8 +58,9 @@ class InterfaceRouteExpensePayments:
                   background=[("selected", "#333333")],
                   foreground=[("selected", "#ffffff")])
 
+        # Treeview
         self.tree = ttk.Treeview(
-            list_frame,
+            tree_container,
             columns=("Data", "Valor", "Descrição"),
             show="headings",
             height=15
@@ -74,9 +76,16 @@ class InterfaceRouteExpensePayments:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=width, stretch=stretch)
 
-        self.tree.pack(fill="both", expand=True, pady=10)
+        # Scrollbar vertical
+        scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.tree.configure(yscrollcommand=scrollbar.set)
 
-        button_frame = tk.Frame(list_frame, bg=self.bg_main)
+        # Treeview preenchendo espaço restante
+        self.tree.pack(side="left", fill="both", expand=True)
+
+        # Botões
+        button_frame = tk.Frame(main_frame, bg=self.bg_main)
         button_frame.pack(pady=10)
 
         actions = [
@@ -112,9 +121,16 @@ class InterfaceRouteExpensePayments:
         route_expense_payments.sort(key=lambda p: p.payment_date, reverse=True)
 
         for payment in route_expense_payments:
-            date_display = payment.payment_date.strftime('%d/%m/%Y') if isinstance(payment.payment_date,
-                                                                                   datetime) else str(
-                payment.payment_date)
+            if isinstance(payment.payment_date, str):
+                try:
+                    date_obj = datetime.strptime(payment.payment_date, '%Y-%m-%d')
+                    date_display = date_obj.strftime('%d/%m/%Y')
+                except ValueError:
+                    date_display = payment.payment_date
+            elif isinstance(payment.payment_date, datetime):
+                date_display = payment.payment_date.strftime('%d/%m/%Y')
+            else:
+                date_display = str(payment.payment_date)
 
             self.tree.insert("", "end", iid=str(payment.expense_payment_id), values=(
                 date_display,
@@ -171,8 +187,7 @@ class InterfaceRouteExpensePayments:
             ext = ".bin"
 
         nome_sanitizado = "".join(c for c in self.route_name if c.isalnum() or c in (' ', '_')).replace(" ", "_")
-        data_str = payment.payment_date.strftime("%d%m%Y") if hasattr(payment.payment_date, "strftime") else str(
-            payment.payment_date)
+        data_str = payment.payment_date.strftime("%d%m%Y") if hasattr(payment.payment_date, "strftime") else str(payment.payment_date)
         initial_filename = f"comprovante_{nome_sanitizado}_{data_str}{ext}"
 
         file_path = filedialog.asksaveasfilename(

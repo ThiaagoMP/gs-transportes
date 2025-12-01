@@ -69,7 +69,10 @@ class StudentRepository:
                 conn.close()
         return False
 
-    def delete(self, student_id: int) -> bool:
+    def delete_by_student_id(self, student_id: int) -> bool:
+        from app.repositories.route_student_repository import RouteStudentRepository
+        route_student_repo = RouteStudentRepository(self.db_file)
+        route_student_repo.delete_by_student_id(student_id)
         sql = '''DELETE FROM Student WHERE StudentID = ?'''
         conn = create_connection(self.db_file)
         if conn:

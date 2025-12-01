@@ -1,7 +1,10 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
+from datetime import datetime
 from app.repositories.student_repository import StudentRepository
+from app.repositories.route_repository import RouteRepository
+from app.repositories.route_student_repository import RouteStudentRepository
 from app.models.student import Student
 from app.components.list_rounded_button import ListRoundedButton
 
@@ -59,6 +62,8 @@ class InterfaceEditarAluno:
         self.db_path = db_path
         self.student_id = student_id
         self.student_repo = StudentRepository(self.db_path)
+        self.route_repo = RouteRepository(self.db_path)
+        self.route_student_repo = RouteStudentRepository(self.db_path)
         self.student = self.student_repo.get_by_id(student_id) if student_id else None
 
         self.bg_main = "#1c1c1e"
@@ -102,7 +107,7 @@ class InterfaceEditarAluno:
         ttk.Label(sub_frame, text="Contato*:").grid(row=0, column=0, sticky="e", padx=(0, 10), pady=10)
         contact_entry = ttk.Entry(sub_frame, width=64)
         contact_entry.grid(row=0, column=1, sticky="w", padx=(0, 10), pady=10)
-        if self.student.contact:
+        if self.student.contact is not None:
             contact_entry.insert(0, self.student.contact)
         else:
             add_placeholder(contact_entry, "Ex.: (11) 99999-9999")
@@ -110,7 +115,7 @@ class InterfaceEditarAluno:
         ttk.Label(sub_frame, text="Endereço*:").grid(row=1, column=0, sticky="e", padx=(0, 10), pady=10)
         address_entry = ttk.Entry(sub_frame, width=64)
         address_entry.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=10)
-        if self.student.address:
+        if self.student.address is not None:
             address_entry.insert(0, self.student.address)
         else:
             add_placeholder(address_entry, "Ex.: Rua das Flores, 123")
@@ -118,7 +123,7 @@ class InterfaceEditarAluno:
         ttk.Label(sub_frame, text="Nome*:").grid(row=2, column=0, sticky="e", padx=(0, 10), pady=10)
         name_entry = ttk.Entry(sub_frame, width=64)
         name_entry.grid(row=2, column=1, sticky="w", padx=(0, 10), pady=10)
-        if self.student.name:
+        if self.student.name is not None:
             name_entry.insert(0, self.student.name)
         else:
             add_placeholder(name_entry, "Ex.: João Silva")
@@ -126,7 +131,7 @@ class InterfaceEditarAluno:
         ttk.Label(sub_frame, text="Informações Extras:").grid(row=3, column=0, sticky="e", padx=(0, 10), pady=10)
         extra_info_entry = ttk.Entry(sub_frame, width=64)
         extra_info_entry.grid(row=3, column=1, sticky="w", padx=(0, 10), pady=10)
-        if self.student.extra_info:
+        if self.student.extra_info is not None:
             extra_info_entry.insert(0, self.student.extra_info)
         else:
             add_placeholder(extra_info_entry, "Ex.: Aluno especial")
@@ -150,7 +155,7 @@ class InterfaceEditarAluno:
         ttk.Label(sub_frame, text="RG*:").grid(row=6, column=0, sticky="e", padx=(0, 10), pady=10)
         rg_entry = ttk.Entry(sub_frame, width=64, validate="key", validatecommand=(self.parent.register(self.validate_and_format_rg), "%P", "%s", "%W"))
         rg_entry.grid(row=6, column=1, sticky="w", padx=(0, 10), pady=10)
-        if self.student.rg:
+        if self.student.rg is not None:
             rg_entry.insert(0, self.student.rg)
         else:
             add_placeholder(rg_entry, "Ex.: 12.345.678-9")
@@ -158,13 +163,56 @@ class InterfaceEditarAluno:
         ttk.Label(sub_frame, text="CPF*:").grid(row=7, column=0, sticky="e", padx=(0, 10), pady=10)
         cpf_entry = ttk.Entry(sub_frame, width=64, validate="key", validatecommand=(self.parent.register(self.validate_and_format_cpf), "%P", "%s", "%W"))
         cpf_entry.grid(row=7, column=1, sticky="w", padx=(0, 10), pady=10)
-        if self.student.cpf:
+        if self.student.cpf is not None:
             cpf_entry.insert(0, self.student.cpf)
         else:
             add_placeholder(cpf_entry, "Ex.: 123.456.789-00")
 
+        # Campo de seleção de linhas (rotas) com LabelFrame, Canvas e Scrollbar
+        routes_frame = tk.LabelFrame(sub_frame, text="Linhas", font=("Segoe UI", 14), bg=self.bg_main, fg=self.accent)
+        routes_frame.grid(row=8, column=0, columnspan=2, padx=15, pady=15, sticky="ew")
+
+        canvas_routes = tk.Canvas(routes_frame, bg=self.bg_main, highlightthickness=0)
+        scrollbar_routes = tk.Scrollbar(routes_frame, orient="vertical", command=canvas_routes.yview)
+        scrollable_frame_routes = tk.Frame(canvas_routes, bg=self.bg_main)
+
+        scrollable_frame_routes.bind("<Configure>", lambda e: canvas_routes.configure(scrollregion=canvas_routes.bbox("all")))
+        canvas_routes.create_window((0, 0), window=scrollable_frame_routes, anchor="nw")
+        canvas_routes.configure(yscrollcommand=scrollbar_routes.set)
+        canvas_routes.pack(side="left", fill="both", expand=True)
+        scrollbar_routes.pack(side="right", fill="y")
+
+        # Adicionar checkboxes para cada rota
+        self.route_vars = []
+        self.routes = []
+        for route in self.route_repo.get_all():
+            var = tk.IntVar()
+            chk = tk.Checkbutton(
+                scrollable_frame_routes,
+                text=route.name or '',
+                variable=var,
+                bg=self.bg_main,           # fundo principal
+                activebackground=self.bg_button,
+                fg=self.fg_text,
+                activeforeground=self.fg_text,
+                selectcolor=self.bg_button,  # cor do quadradinho selecionado
+                font=("Segoe UI", 12),
+                highlightthickness=0,       # remove bordas brancas
+                bd=0,                       # sem borda
+                cursor="hand2"              # cursor de clique
+            )
+            chk.pack(anchor="w", padx=10, pady=5)
+            self.route_vars.append(var)
+            self.routes.append(route.route_id)
+
+        # Marcar checkboxes das rotas associadas ao aluno
+        current_routes = [rs.route_id for rs in self.route_student_repo.get_by_student_id(self.student_id)]
+        for i, route_id in enumerate(self.routes):
+            if route_id in current_routes:
+                self.route_vars[i].set(1)
+
         button_frame = tk.Frame(sub_frame, bg=self.bg_main)
-        button_frame.grid(row=8, column=0, columnspan=2, pady=20)
+        button_frame.grid(row=9, column=0, columnspan=2, pady=20)
 
         ListRoundedButton(button_frame, text="Salvar", command=lambda: self.save_student(
             contact_entry, address_entry, name_entry, extra_info_entry, contract_value_entry, due_day_entry, rg_entry, cpf_entry
@@ -172,7 +220,7 @@ class InterfaceEditarAluno:
 
         ListRoundedButton(button_frame, text="Voltar", command=self.back, bg=self.bg_button, fg=self.fg_text, font=self.font_button).pack(side="left", padx=5)
 
-        ttk.Label(sub_frame, text="* Campos obrigatórios", font=("Segoe UI", 12, "italic"), foreground=self.fg_text).grid(row=9, column=0, columnspan=2, pady=15)
+        ttk.Label(sub_frame, text="* Campos obrigatórios", font=("Segoe UI", 12, "italic"), foreground=self.fg_text).grid(row=10, column=0, columnspan=2, pady=15)
 
     def validate_number(self, P):
         if not P:
@@ -272,9 +320,29 @@ class InterfaceEditarAluno:
             messagebox.showerror("Erro", "O CPF deve ter exatamente 11 dígitos (ignorando . e -).")
             return
 
+        # Verificar rotas selecionadas
+        selected_routes = [self.routes[i] for i, var in enumerate(self.route_vars) if var.get() == 1]
+
+        if not selected_routes:
+            if not messagebox.askyesno("Confirmação", "Nenhuma linha selecionada. O aluno não será adicionado a nenhuma linha. Deseja continuar?"):
+                return
+
         try:
             student = Student(self.student_id, contact, address, name, extra_info, contract_value, due_day, rg, cpf)
             if self.student_repo.update(student):
+                # Atualizar associações de rotas
+                current_routes = set([rs.route_id for rs in self.route_student_repo.get_by_student_id(self.student_id)])
+                selected_routes_set = set(selected_routes)
+                to_remove = current_routes - selected_routes_set
+                to_add = selected_routes_set - current_routes
+
+                for route_id in to_remove:
+                    # Marcar como removido (end_date = hoje)
+                    end_date = datetime.now().strftime('%Y-%m-%d')
+                    self.route_student_repo.update_end_date(route_id, self.student_id, end_date)
+                for route_id in to_add:
+                    self.route_student_repo.add_student_to_route(route_id, self.student_id)
+
                 messagebox.showinfo("Sucesso", f"Aluno com ID {self.student_id} atualizado com sucesso!")
                 self.back()
             else:

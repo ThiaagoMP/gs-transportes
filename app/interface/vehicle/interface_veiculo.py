@@ -42,28 +42,59 @@ class InterfaceListVehicles:
 
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("Treeview", font=("Segoe UI", 12), background=self.bg_main,
-                        fieldbackground=self.bg_main, foreground=self.fg_text)
-        style.configure("Treeview.Heading", font=("Segoe UI", 13, "bold"), background=self.accent, foreground="#ffffff")
-        style.map("Treeview", background=[("selected", "#333333")], foreground=[("selected", "#ffffff")])
+        style.configure(
+            "Treeview",
+            font=("Segoe UI", 12),
+            background=self.bg_main,
+            fieldbackground=self.bg_main,
+            foreground=self.fg_text,
+            rowheight=32
+        )
+        style.configure(
+            "Treeview.Heading",
+            font=("Segoe UI", 13, "bold"),
+            background=self.accent,
+            foreground="#ffffff"
+        )
+        style.map("Treeview",
+                  background=[("selected", "#333333")],
+                  foreground=[("selected", "#ffffff")])
 
-        self.tree = ttk.Treeview(list_frame, columns=(
-            "Placa", "Nome", "Assentos", "Km/L", "Tanque (L)", "Data Compra",
-            "Data Venda", "Valor Compra", "Valor Venda", "Ano Fabricação"
-        ), show="headings", height=15)
+        # Frame para Treeview + Scrollbar vertical
+        tree_frame = tk.Frame(list_frame, bg=self.bg_main)
+        tree_frame.pack(fill="both", expand=True)
+
+        y_scroll = ttk.Scrollbar(tree_frame, orient="vertical")
+        y_scroll.pack(side="right", fill="y")
+
+        self.tree = ttk.Treeview(
+            tree_frame,
+            columns=(
+                "Placa", "Nome", "Assentos", "Km/L", "Tanque (L)",
+                "Data Compra", "Data Venda", "Valor Compra",
+                "Valor Venda", "Ano Fabricação"
+            ),
+            show="headings",
+            height=15,
+            yscrollcommand=y_scroll.set
+        )
+        y_scroll.config(command=self.tree.yview)
+        self.tree.pack(fill="both", expand=True)
 
         for col in self.tree["columns"]:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=100)
-        self.tree.pack(fill="both", expand=True, pady=10)
+            self.tree.column(col, width=130, anchor="center")
+
         self.tree.bind("<Double-1>", self.on_double_click)
 
+        # Frame dos botões (centralizados)
         button_frame = tk.Frame(list_frame, bg=self.bg_main)
-        button_frame.pack(pady=10)
+        button_frame.pack(pady=15)
 
         actions = [
             ("Cadastrar Veículo", self.cadastrar_veiculo),
             ("Editar Veículo", self.editar_veiculo),
+            ("Detalhes", self.vehicle_details),
             ("Manutenções", self.adicionar_manutencao),
             ("Abastecimentos", self.adicionar_abastecimento),
             ("Excluir Veículo", self.confirm_delete)
@@ -141,8 +172,7 @@ class InterfaceListVehicles:
                 getattr(vehicle, 'license_plate', ''),
                 getattr(vehicle, 'name', ''),
                 getattr(vehicle, 'seats', ''),
-                f"{float(getattr(vehicle, 'avg_km_per_liter', 0.0)):.1f}" if getattr(vehicle, 'avg_km_per_liter',
-                                                                                     None) else '0.0',
+                f"{float(getattr(vehicle, 'avg_km_per_liter', 0.0)):.1f}" if getattr(vehicle, 'avg_km_per_liter', None) else '0.0',
                 getattr(vehicle, 'fuel_tank_size', ''),
                 buy_date,
                 sell_date,
@@ -171,14 +201,16 @@ class InterfaceListVehicles:
 
     def editar_veiculo(self):
         selected_item = self.tree.selection()
-        if not selected_item: return
+        if not selected_item:
+            return
         vehicle_id = int(selected_item[0])
         interface = InterfaceEditarVeiculo(self.parent, self.db_path, vehicle_id)
         interface.show()
 
     def adicionar_manutencao(self):
         selected_item = self.tree.selection()
-        if not selected_item: return
+        if not selected_item:
+            return
         vehicle_id = int(selected_item[0])
         vehicle_name = self.vehicle_repo.get_by_id(vehicle_id).name
         from app.interface.vehicle.interface_manutencao import InterfaceMaintenance
@@ -187,11 +219,21 @@ class InterfaceListVehicles:
 
     def adicionar_abastecimento(self):
         selected_item = self.tree.selection()
-        if not selected_item: return
+        if not selected_item:
+            return
         vehicle_id = int(selected_item[0])
         vehicle_name = self.vehicle_repo.get_by_id(vehicle_id).name
         from app.interface.vehicle.interface_abastecimento import InterfaceFueling
         interface = InterfaceFueling(self.parent, self.db_path, vehicle_id, vehicle_name)
+        interface.show()
+
+    def vehicle_details(self):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return
+        vehicle_id = int(selected_item[0])
+        from app.interface.vehicle.interface_vehicle_details import InterfaceVehicleDetails
+        interface = InterfaceVehicleDetails(self.parent, self.db_path, vehicle_id)
         interface.show()
 
     def on_double_click(self, event):

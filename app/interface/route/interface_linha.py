@@ -61,8 +61,15 @@ class InterfaceLinha:
                   background=[("selected", "#333333")],
                   foreground=[("selected", "#ffffff")])
 
+        # Frame container do Treeview + Scrollbar
+        tree_container = tk.Frame(list_frame, bg=self.bg_main)
+        tree_container.pack(fill="both", expand=True)
+
+        tree_container.grid_rowconfigure(0, weight=1)
+        tree_container.grid_columnconfigure(0, weight=1)
+
         self.tree = ttk.Treeview(
-            list_frame,
+            tree_container,
             columns=("Nome", "Placa do Veículo", "Km Médio", "Período", "Tempo Médio (min)", "Ativo"),
             show="headings",
             height=15
@@ -81,7 +88,12 @@ class InterfaceLinha:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=width, anchor="center")
 
-        self.tree.pack(fill="both", expand=True, pady=10)
+        scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
+
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
         self.tree.bind("<Double-1>", self.on_double_click)
 
         button_frame = tk.Frame(list_frame, bg=self.bg_main)
@@ -92,12 +104,13 @@ class InterfaceLinha:
             ("Editar Linha", self.editar_linha),
             ("Pagamentos Extras", self.adicionar_pagamento_extra),
             ("Despesas Extras", self.adicionar_despesa_extra),
+            ("Alunos", self.abrir_alunos),
+            ("Detalhes", self.abrir_detalhes),  # <-- novo botão
             ("Excluir Linha", self.confirm_delete)
         ]
 
         for text, cmd in actions:
-            bg_color = "#f44336" if text.startswith(
-                "Excluir") else self.bg_button
+            bg_color = "#f44336" if text.startswith("Excluir") else self.bg_button
             btn = ListRoundedButton(
                 button_frame,
                 text=text,
@@ -152,6 +165,19 @@ class InterfaceLinha:
             InterfaceCadastrarLinha(self.parent, self.db_path).show()
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao abrir a interface de cadastro: {str(e)}")
+
+    def abrir_detalhes(self):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showwarning("Aviso", "Selecione uma linha para ver os detalhes.")
+            return
+
+        try:
+            route_id = int(selected_item[0])
+            from app.interface.route.interface_route_details import InterfaceDetalhesLinha
+            InterfaceDetalhesLinha(self.parent, self.db_path, route_id).show()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao abrir detalhes: {str(e)}")
 
     def confirm_delete(self):
         selected_item = self.tree.selection()
@@ -208,3 +234,17 @@ class InterfaceLinha:
             InterfaceRouteExpensePayments(self.parent, self.db_path, route_id, route_name).show()
         except ValueError:
             messagebox.showerror("Erro", "ID inválido.")
+
+    def abrir_alunos(self):
+        try:
+            selected_item = self.tree.selection()
+            if not selected_item:
+                messagebox.showwarning("Aviso", "Selecione uma linha.")
+                return
+            from app.interface.route.interface_route_students import InterfaceRouteStudents
+            route_id = int(selected_item[0])
+            route_name = self.route_repo.get_by_id(route_id).name
+            interface = InterfaceRouteStudents(self.parent, self.db_path, route_id, route_name)
+            interface.show()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao abrir a interface de alunos: {str(e)}")

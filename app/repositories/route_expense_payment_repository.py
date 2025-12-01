@@ -32,6 +32,24 @@ class RouteExpensePaymentRepository:
         finally:
             conn.close()
 
+    def sum_expenses(self, route_id: int) -> float:
+        try:
+            conn = create_connection(self.db_file)
+            cursor = conn.cursor()
+            cursor.execute("""
+                           SELECT IFNULL(SUM(Amount), 0)
+                           FROM RouteExpensePayment
+                           WHERE RouteID = ?
+                           """, (route_id,))
+            result = cursor.fetchone()
+            return result[0] if result else 0.0
+        except Exception as e:
+            print(f"Erro ao somar despesas da rota: {e}")
+            return 0.0
+        finally:
+            if conn:
+                conn.close()
+
     def get_all(self) -> List[RouteExpensePayment]:
         sql = '''SELECT ExpensePaymentID, RouteID, PaymentDate, Amount, Receipt, Description FROM RouteExpensePayment'''
         conn = create_connection(self.db_file)

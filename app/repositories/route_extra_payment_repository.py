@@ -51,6 +51,24 @@ class RouteExtraPaymentRepository:
                 conn.close()
         return []
 
+    def sum_extras(self, route_id: int) -> float:
+        try:
+            conn = create_connection(self.db_file)
+            cursor = conn.cursor()
+            cursor.execute("""
+                           SELECT IFNULL(SUM(Amount), 0)
+                           FROM RouteExtraPayment
+                           WHERE RouteID = ?
+                           """, (route_id,))
+            result = cursor.fetchone()
+            return result[0] if result else 0.0
+        except Exception as e:
+            print(f"Erro ao somar pagamentos extras da rota: {e}")
+            return 0.0
+        finally:
+            if conn:
+                conn.close()
+
     def get_by_id(self, extra_payment_id: int) -> Optional[RouteExtraPayment]:
         sql = '''SELECT ExtraPaymentID, RouteID, PaymentDate, Amount, Receipt, Description FROM RouteExtraPayment WHERE ExtraPaymentID = ?'''
         conn = create_connection(self.db_file)

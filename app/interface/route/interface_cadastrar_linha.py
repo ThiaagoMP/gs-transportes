@@ -144,12 +144,29 @@ class InterfaceCadastrarLinha:
         name_entry.grid(row=4, column=1, padx=5, pady=5, sticky="w")
         add_placeholder(name_entry, "Ex.: Linha Centro")
 
-        ttk.Label(fields_frame, text="Ativo*:").grid(row=5, column=0, sticky="e", padx=5, pady=5)
+        # 🔹 NOVO CAMPO: Valor do Contrato (R$)
+        ttk.Label(fields_frame, text="Valor do Contrato (R$)*:").grid(row=5, column=0, sticky="e", padx=5, pady=5)
+        contract_value_entry = ttk.Entry(fields_frame, width=25, validate="key", validatecommand=(self.parent.register(self.validate_decimal), "%P"))
+        contract_value_entry.grid(row=5, column=1, padx=5, pady=5, sticky="w")
+        add_placeholder(contract_value_entry, "Ex.: 1500.00")
+
+        ttk.Label(fields_frame, text="Ativo*:").grid(row=6, column=0, sticky="e", padx=5, pady=5)
         active_var = tk.BooleanVar(value=True)
         active_check = ttk.Checkbutton(fields_frame, variable=active_var, style="TCheckbutton", text="Sim")
-        active_check.grid(row=5, column=1, padx=5, pady=5, sticky="w")
+        active_check.grid(row=6, column=1, padx=5, pady=5, sticky="w")
 
-        ListRoundedButton(fields_frame, text="Salvar", command=lambda: self.save_linha(self.vehicle_combobox, avg_km_entry, self.period_combobox, avg_time_minutes_entry, name_entry, active_var), bg=self.bg_button, fg=self.fg_text, font=self.font_button).grid(row=0, column=7, sticky="e", padx=20, pady=5)
+        ListRoundedButton(
+            fields_frame,
+            text="Salvar",
+            command=lambda: self.save_linha(
+                self.vehicle_combobox, avg_km_entry, self.period_combobox,
+                avg_time_minutes_entry, name_entry, contract_value_entry, active_var
+            ),
+            bg=self.bg_button, fg=self.fg_text, font=self.font_button
+        ).grid(row=0, column=7, sticky="e", padx=20, pady=5)
+
+        # Restante do código (motoristas/alunos) continua igual...
+        # 🔽🔽🔽
 
         drivers_students_frame = tk.Frame(sub_frame, bg=self.bg_main)
         drivers_students_frame.pack(fill="x", padx=10, pady=5)
@@ -179,7 +196,9 @@ class InterfaceCadastrarLinha:
             if driver.driver_id:
                 var = tk.BooleanVar()
                 self.driver_vars[driver.driver_id] = var
-                chk = tk.Checkbutton(scrollable_frame_drivers, text=f"{driver.name} (ID: {driver.driver_id})", variable=var, bg=self.bg_main, fg=self.fg_text, activebackground=self.bg_button, selectcolor=self.bg_button, wraplength=180)
+                chk = tk.Checkbutton(scrollable_frame_drivers, text=f"{driver.name} (ID: {driver.driver_id})",
+                                     variable=var, bg=self.bg_main, fg=self.fg_text,
+                                     activebackground=self.bg_button, selectcolor=self.bg_button, wraplength=180)
                 chk.grid(row=i, column=0, padx=5, pady=2, sticky="w")
 
         students_frame = tk.LabelFrame(drivers_students_frame, text="Alunos", font=self.font_label, bg=self.bg_main, fg=self.fg_text)
@@ -206,15 +225,15 @@ class InterfaceCadastrarLinha:
             if student.student_id:
                 var = tk.BooleanVar()
                 self.student_vars[student.student_id] = var
-                chk = tk.Checkbutton(scrollable_frame_students, text=f"{student.name} (ID: {student.student_id})", variable=var, bg=self.bg_main, fg=self.fg_text, activebackground=self.bg_button, selectcolor=self.bg_button, wraplength=180)
+                chk = tk.Checkbutton(scrollable_frame_students, text=f"{student.name} (ID: {student.student_id})",
+                                     variable=var, bg=self.bg_main, fg=self.fg_text,
+                                     activebackground=self.bg_button, selectcolor=self.bg_button, wraplength=180)
                 chk.grid(row=i, column=0, padx=5, pady=2, sticky="w")
 
         ttk.Label(sub_frame, text="* Campos obrigatórios", font=("Segoe UI", 12, "italic"), foreground=self.fg_text).pack(pady=15)
 
     def validate_number(self, P):
-        if not P:
-            return True
-        return all(c.isdigit() for c in P)
+        return P.isdigit() or P == ""
 
     def validate_decimal(self, P):
         if not P:
@@ -223,47 +242,41 @@ class InterfaceCadastrarLinha:
             if not (c.isdigit() or c in ".,"):
                 return False
         P = P.replace(',', '.')
-        if P.count('.') > 1:
-            return False
-        return True
+        return P.count('.') <= 1
 
-    def save_linha(self, vehicle_combobox, avg_km_entry, period_combobox, avg_time_minutes_entry, name_entry, active_var):
+    def save_linha(self, vehicle_combobox, avg_km_entry, period_combobox, avg_time_minutes_entry, name_entry, contract_value_entry, active_var):
         vehicle_text = vehicle_combobox.get()
         vehicle_id = int(vehicle_text.split("ID: ")[1].split(")")[0]) if vehicle_text else 0
         avg_km = float(get_entry_value(avg_km_entry).replace(',', '.') or 0.0)
         period = period_combobox.get().strip()
         avg_time_minutes = int(get_entry_value(avg_time_minutes_entry) or 0)
         name = get_entry_value(name_entry)
+        contract_value = float(get_entry_value(contract_value_entry).replace(',', '.') or 0.0)
         active = 1 if active_var.get() else 0
 
-        if not all([vehicle_id, avg_km, period, avg_time_minutes, name]):
+        if not all([vehicle_id, avg_km, period, avg_time_minutes, name, contract_value]):
             messagebox.showerror("Erro", "Preencha todos os campos obrigatórios.")
             return
 
         try:
-            route = Route(None, vehicle_id, avg_km, period, avg_time_minutes, name, active)
+            route = Route(None, vehicle_id, avg_km, period, avg_time_minutes, name, active, contract_value)
             route_id = self.route_repo.add(route)
             if route_id:
                 for driver_id, var in self.driver_vars.items():
                     if var.get():
-                        route_driver = RouteDriver(route_id, driver_id)
-                        self.route_driver_repo.add(route_driver)
+                        self.route_driver_repo.add(RouteDriver(route_id, driver_id))
 
                 for student_id, var in self.student_vars.items():
                     if var.get():
-                        route_student = RouteStudent(route_id, student_id, datetime.now().strftime('%Y-%m-%d'), None)
-                        self.route_student_repo.add(route_student)
+                        self.route_student_repo.add(RouteStudent(route_id, student_id, datetime.now().strftime('%Y-%m-%d'), None))
 
                 messagebox.showinfo("Sucesso", f"Linha cadastrada com ID {route_id} e motoristas/alunos associados!")
                 self.back()
             else:
                 messagebox.showerror("Erro", "Falha ao cadastrar a linha.")
-        except ValueError as e:
-            messagebox.showerror("Erro", f"Erro ao salvar: {str(e)}")
         except Exception as e:
             messagebox.showerror("Erro", f"Erro inesperado: {str(e)}")
 
     def back(self):
         from app.interface.route.interface_linha import InterfaceLinha
-        interface = InterfaceLinha(self.parent, self.db_path)
-        interface.show()
+        InterfaceLinha(self.parent, self.db_path).show()

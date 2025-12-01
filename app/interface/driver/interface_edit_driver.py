@@ -61,7 +61,7 @@ class InterfaceEditDriver(tk.Frame):
                           relief="flat", command=lambda e=entry, l=label: self._open_calendar(e, l)).pack(side="left",
                                                                                                           padx=5)
                 tk.Button(frame, text="Limpar", font=self.font_button, bg=self.bg_button, fg=self.fg_text,
-                          relief="flat", command=lambda e=entry: e.delete(0, tk.END)).pack(side="left", padx=5)
+                          relief="flat", command=lambda e=entry: e.delete_by_student_id(0, tk.END)).pack(side="left", padx=5)
             else:
                 entry = tk.Entry(self.form_frame, font=self.font_entry, width=40,
                                  bg="#2a2a2a", fg=self.fg_text, insertbackground=self.fg_text)
@@ -98,7 +98,7 @@ class InterfaceEditDriver(tk.Frame):
 
     def _open_calendar(self, entry, label):
         def set_date(date):
-            entry.delete(0, tk.END)
+            entry.delete_by_student_id(0, tk.END)
             entry.insert(0, date.strftime("%d/%m/%Y"))
 
         initial_date = None
@@ -110,8 +110,8 @@ class InterfaceEditDriver(tk.Frame):
         CustomCalendar(self, callback=set_date, initial_date=initial_date)
 
     def clear_dates(self):
-        self.fields["Data de Início*"].delete(0, tk.END)
-        self.fields["Data de Término"].delete(0, tk.END)
+        self.fields["Data de Início*"].delete_by_student_id(0, tk.END)
+        self.fields["Data de Término"].delete_by_student_id(0, tk.END)
 
     def _preencher_dados(self):
         self.fields["Nome*"].insert(0, self.driver.name)
@@ -132,7 +132,7 @@ class InterfaceEditDriver(tk.Frame):
     def _mask_cpf(self):
         entry = self.fields["CPF*"]
         v = ''.join(filter(str.isdigit, entry.get()))[:11]
-        entry.delete(0, tk.END)
+        entry.delete_by_student_id(0, tk.END)
         entry.insert(0, self._mask_cpf_apply(v))
 
     def _mask_cpf_apply(self, v):
@@ -148,7 +148,7 @@ class InterfaceEditDriver(tk.Frame):
     def _mask_rg(self):
         entry = self.fields["RG*"]
         v = ''.join(filter(str.isdigit, entry.get()))[:9]
-        entry.delete(0, tk.END)
+        entry.delete_by_student_id(0, tk.END)
         entry.insert(0, self._mask_rg_apply(v))
 
     def _mask_rg_apply(self, v):
@@ -162,7 +162,7 @@ class InterfaceEditDriver(tk.Frame):
     def _mask_cnh(self):
         entry = self.fields["CNH*"]
         v = ''.join(filter(str.isdigit, entry.get()))[:20]
-        entry.delete(0, tk.END)
+        entry.delete_by_student_id(0, tk.END)
         entry.insert(0, v)
 
     def save_driver(self):

@@ -3,8 +3,10 @@ from tkinter import ttk
 from tkinter import messagebox
 from datetime import datetime
 from app.repositories.student_repository import StudentRepository
+from app.repositories.route_repository import RouteRepository
 from app.models.student import Student
 from app.components.list_rounded_button import ListRoundedButton
+
 
 def add_placeholder(entry: ttk.Entry, placeholder: str):
     entry._ph_text = placeholder
@@ -46,6 +48,7 @@ def add_placeholder(entry: ttk.Entry, placeholder: str):
     entry.bind("<FocusOut>", on_focus_out, add="+")
     _show_placeholder()
 
+
 def get_entry_value(entry: ttk.Entry) -> str:
     text = entry.get().strip()
     if getattr(entry, "_ph_active", False):
@@ -54,11 +57,13 @@ def get_entry_value(entry: ttk.Entry) -> str:
         return ""
     return text
 
+
 class InterfaceCadastrarAluno:
     def __init__(self, parent, db_path):
         self.parent = parent
         self.db_path = db_path
         self.student_repo = StudentRepository(self.db_path)
+        self.route_repo = RouteRepository(self.db_path)
 
         self.bg_main = "#1c1c1e"
         self.bg_button = "#3a3f47"
@@ -74,7 +79,8 @@ class InterfaceCadastrarAluno:
         for widget in self.parent.winfo_children():
             widget.destroy()
 
-        tk.Label(self.parent, text="Cadastrar Aluno", font=self.font_title, bg=self.bg_main, fg=self.accent).pack(pady=25)
+        tk.Label(self.parent, text="Cadastrar Aluno", font=self.font_title, bg=self.bg_main, fg=self.accent).pack(
+            pady=25)
 
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
         main_frame.pack(pady=10, padx=(350, 0), anchor="nw")
@@ -86,7 +92,8 @@ class InterfaceCadastrarAluno:
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("TLabel", font=self.font_label, background=self.bg_main, foreground=self.fg_text)
-        style.configure("TEntry", font=self.font_entry, padding=6, fieldbackground=self.bg_button, foreground=self.fg_text)
+        style.configure("TEntry", font=self.font_entry, padding=6, fieldbackground=self.bg_button,
+                        foreground=self.fg_text)
         style.configure("TButton", font=self.font_button, padding=10,
                         background=self.bg_button, foreground=self.fg_text)
         style.map("TButton",
@@ -115,35 +122,80 @@ class InterfaceCadastrarAluno:
         add_placeholder(extra_info_entry, "Ex.: Aluno especial")
 
         ttk.Label(sub_frame, text="Valor do Contrato (R$)*:").grid(row=4, column=0, sticky="e", padx=(0, 10), pady=10)
-        contract_value_entry = ttk.Entry(sub_frame, width=64, validate="key", validatecommand=(self.parent.register(self.validate_decimal), "%P"))
+        contract_value_entry = ttk.Entry(sub_frame, width=64, validate="key",
+                                         validatecommand=(self.parent.register(self.validate_decimal), "%P"))
         contract_value_entry.grid(row=4, column=1, sticky="w", padx=(0, 10), pady=10)
         add_placeholder(contract_value_entry, "Ex.: 500.00")
 
         ttk.Label(sub_frame, text="Dia de Vencimento*:").grid(row=5, column=0, sticky="e", padx=(0, 10), pady=10)
-        due_day_entry = ttk.Entry(sub_frame, width=64, validate="key", validatecommand=(self.parent.register(self.validate_number_max), "%P", 2))
+        due_day_entry = ttk.Entry(sub_frame, width=64, validate="key",
+                                  validatecommand=(self.parent.register(self.validate_number_max), "%P", 2))
         due_day_entry.grid(row=5, column=1, sticky="w", padx=(0, 10), pady=10)
         add_placeholder(due_day_entry, "Ex.: 15")
 
         ttk.Label(sub_frame, text="RG*:").grid(row=6, column=0, sticky="e", padx=(0, 10), pady=10)
-        rg_entry = ttk.Entry(sub_frame, width=64, validate="key", validatecommand=(self.parent.register(self.validate_and_format_rg), "%P", "%s", "%W"))
+        rg_entry = ttk.Entry(sub_frame, width=64, validate="key",
+                             validatecommand=(self.parent.register(self.validate_and_format_rg), "%P", "%s", "%W"))
         rg_entry.grid(row=6, column=1, sticky="w", padx=(0, 10), pady=10)
         add_placeholder(rg_entry, "Ex.: 12.345.678-9")
 
         ttk.Label(sub_frame, text="CPF*:").grid(row=7, column=0, sticky="e", padx=(0, 10), pady=10)
-        cpf_entry = ttk.Entry(sub_frame, width=64, validate="key", validatecommand=(self.parent.register(self.validate_and_format_cpf), "%P", "%s", "%W"))
+        cpf_entry = ttk.Entry(sub_frame, width=64, validate="key",
+                              validatecommand=(self.parent.register(self.validate_and_format_cpf), "%P", "%s", "%W"))
         cpf_entry.grid(row=7, column=1, sticky="w", padx=(0, 10), pady=10)
         add_placeholder(cpf_entry, "Ex.: 123.456.789-00")
 
+        # Campo de seleção de linhas (rotas) com LabelFrame, Canvas e Scrollbar
+        routes_frame = tk.LabelFrame(sub_frame, text="Linhas", font=("Segoe UI", 14), bg=self.bg_main, fg=self.accent)
+        routes_frame.grid(row=8, column=0, columnspan=2, padx=15, pady=15, sticky="ew")
+
+        canvas_routes = tk.Canvas(routes_frame, bg=self.bg_main, highlightthickness=0)
+        scrollbar_routes = tk.Scrollbar(routes_frame, orient="vertical", command=canvas_routes.yview)
+        scrollable_frame_routes = tk.Frame(canvas_routes, bg=self.bg_main)
+
+        scrollable_frame_routes.bind("<Configure>",
+                                     lambda e: canvas_routes.configure(scrollregion=canvas_routes.bbox("all")))
+        canvas_routes.create_window((0, 0), window=scrollable_frame_routes, anchor="nw")
+        canvas_routes.configure(yscrollcommand=scrollbar_routes.set)
+        canvas_routes.pack(side="left", fill="both", expand=True)
+        scrollbar_routes.pack(side="right", fill="y")
+
+        # Adicionar checkboxes para cada rota
+        self.route_vars = []
+        self.routes = []
+        for route in self.route_repo.get_all():
+            var = tk.IntVar()
+            chk = tk.Checkbutton(
+                scrollable_frame_routes,
+                text=getattr(route, 'name', ''),
+                variable=var,
+                bg=self.bg_main,  # fundo principal
+                activebackground=self.bg_button,
+                fg=self.fg_text,
+                activeforeground=self.fg_text,
+                selectcolor=self.bg_button,  # cor do quadradinho selecionado
+                font=("Segoe UI", 12),
+                highlightthickness=0,  # remove bordas brancas
+                bd=0,  # sem borda
+                cursor="hand2"  # cursor de clique
+            )
+            chk.pack(anchor="w", padx=10, pady=5)
+            self.route_vars.append(var)
+            self.routes.append(route.route_id)
+
         button_frame = tk.Frame(sub_frame, bg=self.bg_main)
-        button_frame.grid(row=8, column=0, columnspan=2, pady=20)
+        button_frame.grid(row=9, column=0, columnspan=2, pady=20)
 
         ListRoundedButton(button_frame, text="Salvar", command=lambda: self.save_student(
-            contact_entry, address_entry, name_entry, extra_info_entry, contract_value_entry, due_day_entry, rg_entry, cpf_entry
+            contact_entry, address_entry, name_entry, extra_info_entry, contract_value_entry, due_day_entry, rg_entry,
+            cpf_entry
         ), bg=self.bg_button, fg=self.fg_text, font=self.font_button).pack(side="left", padx=5)
 
-        ListRoundedButton(button_frame, text="Voltar", command=self.back, bg=self.bg_button, fg=self.fg_text, font=self.font_button).pack(side="left", padx=5)
+        ListRoundedButton(button_frame, text="Voltar", command=self.back, bg=self.bg_button, fg=self.fg_text,
+                          font=self.font_button).pack(side="left", padx=5)
 
-        ttk.Label(sub_frame, text="* Campos obrigatórios", font=("Segoe UI", 12, "italic"), foreground=self.fg_text).grid(row=9, column=0, columnspan=2, pady=15)
+        ttk.Label(sub_frame, text="* Campos obrigatórios", font=("Segoe UI", 12, "italic"),
+                  foreground=self.fg_text).grid(row=10, column=0, columnspan=2, pady=15)
 
     def validate_number(self, P):
         if not P:
@@ -177,7 +229,7 @@ class InterfaceCadastrarAluno:
         formatted = self.format_rg(digits)
         if formatted != P:
             entry = self.parent.nametowidget(W)
-            entry.delete(0, tk.END)
+            entry.delete_by_student_id(0, tk.END)
             entry.insert(0, formatted)
         return True
 
@@ -190,7 +242,7 @@ class InterfaceCadastrarAluno:
         formatted = self.format_cpf(digits)
         if formatted != P:
             entry = self.parent.nametowidget(W)
-            entry.delete(0, tk.END)
+            entry.delete_by_student_id(0, tk.END)
             entry.insert(0, formatted)
         return True
 
@@ -214,7 +266,8 @@ class InterfaceCadastrarAluno:
         else:
             return f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
 
-    def save_student(self, contact_entry, address_entry, name_entry, extra_info_entry, contract_value_entry, due_day_entry, rg_entry, cpf_entry):
+    def save_student(self, contact_entry, address_entry, name_entry, extra_info_entry, contract_value_entry,
+                     due_day_entry, rg_entry, cpf_entry):
         contact = get_entry_value(contact_entry)
         address = get_entry_value(address_entry)
         name = get_entry_value(name_entry)
@@ -243,10 +296,23 @@ class InterfaceCadastrarAluno:
             messagebox.showerror("Erro", "O CPF deve ter exatamente 11 dígitos (ignorando . e -).")
             return
 
+        # Verificar rotas selecionadas
+        selected_routes = [self.routes[i] for i, var in enumerate(self.route_vars) if var.get() == 1]
+
+        if not selected_routes:
+            if not messagebox.askyesno("Confirmação",
+                                       "Nenhuma linha selecionada. O aluno não será adicionado a nenhuma linha. Deseja continuar?"):
+                return
+
         try:
             student = Student(None, contact, address, name, extra_info, contract_value, due_day, rg, cpf)
             student_id = self.student_repo.add(student)
             if student_id:
+                # Associar rotas selecionadas
+                from app.repositories.route_student_repository import RouteStudentRepository
+                route_student_repo = RouteStudentRepository(self.db_path)
+                for route_id in selected_routes:
+                    route_student_repo.add_student_to_route(route_id, student_id)
                 messagebox.showinfo("Sucesso", f"Aluno cadastrado com ID {student_id}!")
                 self.back()
             else:

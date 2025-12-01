@@ -36,8 +36,9 @@ class InterfacePagamentosAluno:
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
         main_frame.pack(padx=30, pady=10, fill="both", expand=True)
 
-        list_frame = tk.Frame(main_frame, bg=self.bg_main)
-        list_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # Container Treeview + Scrollbar
+        tree_container = tk.Frame(main_frame, bg=self.bg_main)
+        tree_container.pack(fill="both", expand=True, padx=10, pady=10)
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -54,8 +55,9 @@ class InterfacePagamentosAluno:
                   background=[("selected", "#333333")],
                   foreground=[("selected", "#ffffff")])
 
+        # Treeview
         self.tree = ttk.Treeview(
-            list_frame,
+            tree_container,
             columns=("Data", "Valor", "Info Extra"),
             show="headings",
             height=15
@@ -71,21 +73,27 @@ class InterfacePagamentosAluno:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=width, stretch=stretch)
 
-        self.tree.pack(fill="both", expand=True, pady=10)
+        # Scrollbar vertical
+        scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.tree.configure(yscrollcommand=scrollbar.set)
 
-        button_frame = tk.Frame(list_frame, bg=self.bg_main)
+        # Treeview preenchendo o espaço restante
+        self.tree.pack(side="left", fill="both", expand=True)
+
+        # Botões
+        button_frame = tk.Frame(main_frame, bg=self.bg_main)
         button_frame.pack(pady=10)
 
         actions = [
             ("Adicionar Pagamento", self.adicionar_pagamento),
-            ("Excluir Pagamento", self.excluir_pagamento),
             ("Baixar Comprovante", self.baixar_comprovante),
-            ("Voltar", self.back)
+            ("Voltar", self.back),
+            ("Excluir Pagamento", self.excluir_pagamento)
         ]
 
         for text, cmd in actions:
-            bg_color = "#f44336" if text.startswith(
-                "Excluir") else self.bg_button
+            bg_color = "#f44336" if text.startswith("Excluir") else self.bg_button
             btn = ListRoundedButton(
                 button_frame,
                 text=text,
@@ -176,8 +184,7 @@ class InterfacePagamentosAluno:
             ext = ".bin"
 
         nome_sanitizado = "".join(c for c in self.student.name if c.isalnum() or c in (' ', '_')).replace(" ", "_")
-        data_str = payment.payment_date.strftime("%d%m%Y") if hasattr(payment.payment_date, "strftime") else str(
-            payment.payment_date)
+        data_str = payment.payment_date.strftime("%d%m%Y") if hasattr(payment.payment_date, "strftime") else str(payment.payment_date)
         initial_filename = f"comprovante_{nome_sanitizado}_{data_str}{ext}"
 
         file_path = filedialog.asksaveasfilename(

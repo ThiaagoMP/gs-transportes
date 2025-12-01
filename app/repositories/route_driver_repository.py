@@ -23,6 +23,37 @@ class RouteDriverRepository:
                 conn.close()
         return None
 
+    def get_driver_ids_by_route(self, route_id: int) -> List[int]:
+        conn = create_connection(self.db_file)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                           SELECT DriverID
+                           FROM RouteDriver
+                           WHERE RouteID = ?
+                           """, (route_id,))
+            rows = cursor.fetchall()
+            return [row[0] for row in rows]
+        except sqlite3.Error as e:
+            print(f"Erro ao buscar motoristas da rota: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def count_routes_by_driver(self, driver_id: int) -> int:
+        conn = create_connection(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COUNT(DISTINCT RouteID) "
+            "FROM RouteDriver "
+            "WHERE DriverID = ?",
+            (driver_id,)
+        )
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else 0
+
     def get_by_route_id(self, route_id: int) -> List[RouteDriver]:
         sql = '''SELECT RouteID, DriverID FROM RouteDriver WHERE RouteID = ?'''
         conn = create_connection(self.db_file)

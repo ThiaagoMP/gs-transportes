@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 from typing import List, Optional
 from app.models.trip import Trip
 from app.database import create_connection
@@ -22,6 +23,31 @@ class TripRepository:
             finally:
                 conn.close()
         return None
+
+    def count_trips_by_vehicle(self, vehicle_id: int, period: str = "total") -> int:
+        base_sql = "SELECT COUNT(*) FROM Trip WHERE VehicleID = ?"
+        params = [vehicle_id]
+
+        if period == "year":
+            base_sql += " AND strftime('%Y', StartDate) = ?"
+            params.append(datetime.now().strftime("%Y"))
+        elif period == "month":
+            base_sql += " AND strftime('%Y-%m', StartDate) = ?"
+            params.append(datetime.now().strftime("%Y-%m"))
+
+        conn = create_connection(self.db_file)
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute(base_sql, params)
+                result = cursor.fetchone()
+                return result[0] if result else 0
+            except sqlite3.Error as e:
+                print(f"Erro ao contar viagens do veículo: {e}")
+            finally:
+                conn.close()
+        return 0
+
 
     def get_all(self) -> List[Trip]:
         sql = '''SELECT * FROM Trip'''

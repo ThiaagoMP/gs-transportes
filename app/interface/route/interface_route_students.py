@@ -3,20 +3,24 @@ from tkinter import ttk
 from tkinter import messagebox
 
 from app.components.list_rounded_button import ListRoundedButton
+from app.interface.route.interface_manage_route_students import InterfaceGerenciarAlunosLinha
 from app.interface.student.interface_pagamentos_aluno import InterfacePagamentosAluno
+from app.repositories.route_student_repository import RouteStudentRepository
 from app.repositories.student_payment_repository import StudentPaymentRepository
 from app.repositories.student_repository import StudentRepository
 from app.interface.student.interface_cadastrar_aluno import InterfaceCadastrarAluno
 from app.interface.student.interface_editar_aluno import InterfaceEditarAluno
 from app.interface.student.interface_adicionar_linha import InterfaceAdicionarNaLinha
-from app.interface.student.interface_cadastrar_pagamento import InterfaceCadastrarPagamento
 
 
-class InterfaceAluno:
-    def __init__(self, parent, db_path):
+class InterfaceRouteStudents:
+    def __init__(self, parent, db_path, route_id, route_name):
         self.parent = parent
         self.db_path = db_path
+        self.route_id = route_id
+        self.route_name = route_name
         self.student_repo = StudentRepository(self.db_path)
+        self.route_student_repo = RouteStudentRepository(self.db_path)
 
         self.bg_main = "#1c1c1e"
         self.bg_button = "#3a3f47"
@@ -31,7 +35,7 @@ class InterfaceAluno:
 
         tk.Label(
             self.parent,
-            text="Alunos",
+            text=f"Alunos da Rota {self.route_name}",
             font=("Segoe UI", 26, "bold"),
             bg=self.bg_main,
             fg=self.accent,
@@ -41,8 +45,9 @@ class InterfaceAluno:
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
         main_frame.pack(padx=30, pady=10, fill="both", expand=True)
 
-        list_frame = tk.Frame(main_frame, bg=self.bg_main)
-        list_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # Container Treeview + Scrollbar
+        tree_container = tk.Frame(main_frame, bg=self.bg_main)
+        tree_container.pack(fill="both", expand=True, padx=10, pady=10)
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -58,13 +63,6 @@ class InterfaceAluno:
         style.map("Treeview",
                   background=[("selected", "#333333")],
                   foreground=[("selected", "#ffffff")])
-
-        # Frame principal do Treeview + Scrollbar
-        tree_container = tk.Frame(list_frame, bg=self.bg_main)
-        tree_container.pack(fill="both", expand=True)
-
-        tree_container.grid_rowconfigure(0, weight=1)
-        tree_container.grid_columnconfigure(0, weight=1)
 
         self.tree = ttk.Treeview(
             tree_container,
@@ -87,33 +85,31 @@ class InterfaceAluno:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=width)
 
-        # Scrollbar vertical do tamanho exato do tree_container
+        # Scrollbar vertical
         scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
+        scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=scrollbar.set)
 
-        # Posicionamento com grid
-        self.tree.grid(row=0, column=0, sticky="nsew")
-        scrollbar.grid(row=0, column=1, sticky="ns")
-
+        self.tree.pack(side="left", fill="both", expand=True)
         self.tree.bind("<Double-1>", self.on_double_click)
 
-        button_frame = tk.Frame(list_frame, bg=self.bg_main)
+        button_frame = tk.Frame(main_frame, bg=self.bg_main)
         button_frame.pack(pady=10)
 
         actions = [
-            ("Cadastrar Aluno", self.cadastrar_aluno),
             ("Editar Aluno", self.editar_aluno),
+            ("Gerenciar Alunos", self.adicionar_na_linha),
             ("Pagamentos", self.payments),
-            ("Excluir Aluno", self.confirm_delete),
+            ("Voltar", self.back),
         ]
 
         for text, cmd in actions:
-            bg_color = "#f44336" if text.startswith("Excluir") else self.bg_button
+            bg_color = self.bg_button
             btn = ListRoundedButton(
                 button_frame,
                 text=text,
                 command=cmd,
-                width=210,
+                width=250,
                 height=50,
                 bg=bg_color,
                 fg=self.fg_text,
@@ -127,21 +123,20 @@ class InterfaceAluno:
 
     def load_students(self):
         self.tree.delete(*self.tree.get_children())
-        students = self.student_repo.get_all()
-
-        # ✅ Ordenar alfabeticamente por nome
-        students.sort(key=lambda s: getattr(s, 'name', '').lower() if getattr(s, 'name', '') else '')
-
-        for student in students:
-            student_id = getattr(student, 'student_id', None)
+        route_students = self.route_student_repo.get_students_by_route_id(int(self.route_id))
+        for route_student in route_students:
+            student_id = getattr(route_student, 'student_id', None)
             if student_id is None or not str(student_id).strip():
                 continue
+
+            student = self.student_repo.get_by_id(student_id)
 
             self.tree.insert("", "end", iid=str(student_id), values=(
                 getattr(student, 'name', ''),
                 getattr(student, 'contact', ''),
                 getattr(student, 'address', ''),
-                f"{float(getattr(student, 'contract_value', 0.0)):.2f}" if getattr(student, 'contract_value', None) is not None else '0.00',
+                f"{float(getattr(student, 'contract_value', 0.0)):.2f}" if getattr(student, 'contract_value',
+                                                                                   None) is not None else '0.00',
                 getattr(student, 'due_day', ''),
                 getattr(student, 'rg', ''),
                 getattr(student, 'cpf', '')
@@ -164,32 +159,6 @@ class InterfaceAluno:
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao abrir o cadastro: {str(e)}")
 
-    def confirm_delete(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione um aluno para excluir.")
-            return
-
-        student_id = selected_item[0]
-        if not student_id.strip():
-            messagebox.showerror("Erro", "ID do aluno inválido.")
-            return
-
-        try:
-            student_id = int(student_id)
-        except ValueError:
-            messagebox.showerror("Erro", "ID do aluno inválido (não é um número).")
-            return
-
-        student_name = self.tree.item(student_id, "values")[0]
-        if messagebox.askyesno("Confirmação",
-                               f"Deseja realmente excluir o aluno '{student_name}'?"):
-            if self.student_repo.delete_by_student_id(student_id):
-                messagebox.showinfo("Sucesso", f"Aluno '{student_name}' excluído com sucesso!")
-                self.load_students()
-            else:
-                messagebox.showerror("Erro", "Falha ao excluir aluno.")
-
     def editar_aluno(self):
         selected_item = self.tree.selection()
         if not selected_item:
@@ -203,16 +172,11 @@ class InterfaceAluno:
             messagebox.showerror("Erro", "ID do aluno inválido.")
 
     def adicionar_na_linha(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione um aluno.")
-            return
         try:
-            student_id = int(selected_item[0])
-            interface = InterfaceAdicionarNaLinha(self.parent, self.db_path, student_id)
+            interface = InterfaceGerenciarAlunosLinha(self.parent, self.db_path, self.route_id)
             interface.show()
-        except ValueError:
-            messagebox.showerror("Erro", "ID do aluno inválido.")
+        except Exception:
+            messagebox.showerror("Erro", "Erro ao gerenciar alunos na linha.")
 
     def payments(self):
         selected_item = self.tree.selection()
@@ -220,12 +184,11 @@ class InterfaceAluno:
             messagebox.showwarning("Aviso", "Selecione um aluno.")
             return
         student_id = int(selected_item[0])
-        student_repo = StudentRepository(self.db_path)
-        student = student_repo.get_by_id(student_id)
-
-        payment_repo = StudentPaymentRepository(self.db_path)
-        all_payments = payment_repo.get_all()
-        students_payments = [p for p in all_payments if p.student_id == student.student_id]
-
+        student = self.student_repo.get_by_id(student_id)
         interface = InterfacePagamentosAluno(self.parent, self.db_path, student)
+        interface.show()
+
+    def back(self):
+        from app.interface.route.interface_linha import InterfaceLinha
+        interface = InterfaceLinha(self.parent, self.db_path)
         interface.show()

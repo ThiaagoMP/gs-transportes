@@ -1,14 +1,13 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 from datetime import datetime
-
 from app.interface.driver.interface_edit_driver import InterfaceEditDriver
 from app.interface.driver.interface_list_bonus import InterfaceBonificacoesMotorista
 from app.repositories.driver_repository import DriverRepository
 from app.repositories.driver_bonus_repository import DriverBonusRepository
 from app.interface.driver.interface_add_driver_bonus import InterfaceAddDriverBonus
 from app.interface.driver.interface_register_driver import InterfaceRegisterDriver
+from app.components.list_rounded_button import ListRoundedButton
 
 class InterfaceListDrivers:
     def __init__(self, parent, db_path):
@@ -17,7 +16,6 @@ class InterfaceListDrivers:
         self.driver_repo = DriverRepository(self.db_path)
         self.bonus_repo = DriverBonusRepository(self.db_path)
         self.font_title = ("Segoe UI", 28, "bold")
-        self.font_label = ("Segoe UI", 16)
         self.font_tree = ("Segoe UI", 14)
         self.row_height = 35
         self.bg_main = "#1c1c1e"
@@ -26,8 +24,11 @@ class InterfaceListDrivers:
         self.accent_color = "#ff7f32"
 
     def show(self):
+
         for widget in self.parent.winfo_children():
             widget.destroy()
+
+        self.parent.configure(bg=self.bg_main)
 
         tk.Label(
             self.parent,
@@ -35,13 +36,13 @@ class InterfaceListDrivers:
             font=self.font_title,
             bg=self.bg_main,
             fg=self.accent_color
-        ).pack(pady=40)
+        ).pack(pady=(20, 10), padx=20, anchor="w")
 
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
-        main_frame.pack(fill="both", expand=True, padx=40, pady=20)
+        main_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
 
-        list_frame = tk.Frame(main_frame, bg=self.bg_main)
-        list_frame.pack(fill="both", expand=True)
+        tree_frame = tk.Frame(main_frame, bg=self.bg_main)
+        tree_frame.pack(fill="both", expand=True)
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -61,11 +62,12 @@ class InterfaceListDrivers:
         )
 
         self.tree = ttk.Treeview(
-            list_frame,
+            tree_frame,
             columns=("Nome", "Salário", "Contato", "Data Contratado", "Data Demitido"),
             show="headings",
-            height=15
+            height=20
         )
+
         for col in self.tree["columns"]:
             self.tree.heading(col, text=col)
         self.tree.column("Nome", width=300)
@@ -73,12 +75,14 @@ class InterfaceListDrivers:
         self.tree.column("Contato", width=250)
         self.tree.column("Data Contratado", width=150)
         self.tree.column("Data Demitido", width=150)
-        self.tree.pack(fill="both", expand=True, pady=20)
+        self.tree.pack(side="left", fill="both", expand=True)
 
-        button_frame = tk.Frame(list_frame, bg=self.bg_main)
-        button_frame.pack(pady=15)
+        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.tree.configure(yscrollcommand=scrollbar.set)
 
-        from app.components.list_rounded_button import ListRoundedButton
+        button_frame = tk.Frame(self.parent, bg=self.bg_main)
+        button_frame.pack(fill="x", side="bottom", pady=10)
 
         inner_frame = tk.Frame(button_frame, bg=self.bg_main)
         inner_frame.pack()
@@ -86,13 +90,14 @@ class InterfaceListDrivers:
         btns = [
             ("Cadastrar Motorista", self.register_driver, self.bg_button),
             ("Editar Motorista", self.edit_selected_driver, self.bg_button),
-            ("Visualizar Lucros", self.visualize_profits, self.bg_button),
+            ("Detalhes", self.driver_details, self.bg_button),
             ("Bonificações", self.add_bonus, self.bg_button),
             ("Excluir Motorista", self.delete_driver, "#f44336")
         ]
 
-        for i, (text, cmd, color) in enumerate(btns):
-            btn = ListRoundedButton(inner_frame, text=text, width=220, height=50, fg=self.fg_text, bg=color, command=cmd)
+        for text, cmd, color in btns:
+            btn = ListRoundedButton(inner_frame, text=text, width=220, height=50, fg=self.fg_text, bg=color,
+                                    command=cmd)
             btn.pack(side="left", padx=10)
 
         self.tree.bind("<Double-1>", self.on_double_click)
@@ -123,11 +128,7 @@ class InterfaceListDrivers:
             messagebox.showwarning("Aviso", "Selecione um motorista para editar.")
             return
         driver_id = int(selected_item[0])
-        driver = self.driver_repo.get_by_id(driver_id)
-        if driver:
-            self.edit_driver(driver_id)
-        else:
-            messagebox.showerror("Erro", "Motorista não encontrado.")
+        self.edit_driver(driver_id)
 
     def edit_driver(self, driver_id):
         for widget in self.parent.winfo_children():
@@ -136,8 +137,15 @@ class InterfaceListDrivers:
         interface = InterfaceEditDriver(self.parent, self.db_path, driver)
         interface.pack(fill="both", expand=True)
 
-    def visualize_profits(self):
-        messagebox.showinfo("Aviso", "Funcionalidade 'Visualizar Lucros' ainda não implementada.")
+    def driver_details(self):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showwarning("Aviso", "Selecione um motorista para visualizar detalhes.")
+            return
+        driver_id = int(selected_item[0])
+        from app.interface.driver.interface_driver_details import InterfaceDriverDetails
+        interface = InterfaceDriverDetails(self.parent, self.db_path, driver_id)
+        interface.show()
 
     def add_bonus(self):
         selected_item = self.tree.selection()

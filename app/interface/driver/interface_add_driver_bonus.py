@@ -178,7 +178,7 @@ class InterfaceAddDriverBonus:
     def open_calendar(self, date_entry):
         def callback(selected_date):
             date_entry.config(state="normal")
-            date_entry.delete(0, tk.END)
+            date_entry.delete_by_student_id(0, tk.END)
             date_entry.insert(0, selected_date.strftime('%d/%m/%Y'))
             date_entry.config(state="readonly")
         CustomCalendar(self.parent, callback=callback, initial_date=datetime.now().date())

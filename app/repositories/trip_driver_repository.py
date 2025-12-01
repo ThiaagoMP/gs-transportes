@@ -3,6 +3,7 @@ from typing import List, Optional
 from app.models.trip_driver import TripDriver
 from app.database import create_connection
 
+
 class TripDriverRepository:
     def __init__(self, db_file: str):
         self.db_file = db_file
@@ -23,6 +24,23 @@ class TripDriverRepository:
                 conn.close()
         return False
 
+    def count_trips(self, driver_id: int, period: str = "total") -> int:
+        conn = create_connection(self.db_file)
+        cursor = conn.cursor()
+
+        sql = "SELECT COUNT(*) FROM TripDriver td JOIN Trip t ON td.TripID = t.TripID WHERE td.DriverID = ?"
+        params = [driver_id]
+
+        if period == "year":
+            sql += " AND strftime('%Y', t.EndDate) = strftime('%Y', 'now')"
+        elif period == "month":
+            sql += " AND strftime('%Y-%m', t.EndDate) = strftime('%Y-%m', 'now')"
+
+        cursor.execute(sql, params)
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else 0
+
     def get_by_trip_id(self, trip_id: int) -> List[TripDriver]:
         sql = '''SELECT * \
                  FROM TripDriver \
@@ -40,8 +58,17 @@ class TripDriverRepository:
                 conn.close()
         return []
 
+    def get_driver_ids_by_trip(self, trip_id: int) -> List[int]:
+        conn = create_connection(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute("SELECT DriverID FROM TripDriver WHERE TripID = ?", (trip_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [row[0] for row in rows]
+
     def get_all(self) -> List[TripDriver]:
-        sql = '''SELECT * FROM TripDriver'''
+        sql = '''SELECT *
+                 FROM TripDriver'''
         conn = create_connection(self.db_file)
         if conn:
             try:
@@ -56,7 +83,10 @@ class TripDriverRepository:
         return []
 
     def get_by_ids(self, trip_id: int, driver_id: int) -> Optional[TripDriver]:
-        sql = '''SELECT * FROM TripDriver WHERE TripID = ? AND DriverID = ?'''
+        sql = '''SELECT *
+                 FROM TripDriver
+                 WHERE TripID = ?
+                   AND DriverID = ?'''
         conn = create_connection(self.db_file)
         if conn:
             try:
@@ -74,7 +104,10 @@ class TripDriverRepository:
         return False
 
     def delete(self, trip_id: int, driver_id: int) -> bool:
-        sql = '''DELETE FROM TripDriver WHERE TripID = ? AND DriverID = ?'''
+        sql = '''DELETE
+                 FROM TripDriver
+                 WHERE TripID = ?
+                   AND DriverID = ?'''
         conn = create_connection(self.db_file)
         if conn:
             try:

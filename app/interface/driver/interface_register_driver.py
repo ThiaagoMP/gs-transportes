@@ -182,7 +182,7 @@ class InterfaceRegisterDriver:
         formatted = self.format_cpf(digits)
         if formatted != P:
             entry = self.parent.nametowidget(W)
-            entry.delete(0, tk.END)
+            entry.delete_by_student_id(0, tk.END)
             entry.insert(0, formatted)
         return True
 
@@ -195,7 +195,7 @@ class InterfaceRegisterDriver:
         formatted = self.format_rg(digits)
         if formatted != P:
             entry = self.parent.nametowidget(W)
-            entry.delete(0, tk.END)
+            entry.delete_by_student_id(0, tk.END)
             entry.insert(0, formatted)
         return True
 
@@ -222,7 +222,7 @@ class InterfaceRegisterDriver:
     def open_calendar(self, date_entry):
         def callback(selected_date):
             date_entry.config(state="normal")
-            date_entry.delete(0, tk.END)
+            date_entry.delete_by_student_id(0, tk.END)
             date_entry.insert(0, selected_date.strftime('%d/%m/%Y'))
             date_entry.config(state="readonly")
         CustomCalendar(self.parent, callback=callback, initial_date=datetime.now().date())
@@ -269,16 +269,16 @@ class InterfaceRegisterDriver:
             messagebox.showerror("Erro", f"Erro ao cadastrar motorista: {str(e)}")
 
     def clear_form(self, name_entry, salary_entry, contact_entry, start_date_entry, end_date_entry, cpf_entry, rg_entry, cnh_entry, extra_info_entry):
-        name_entry.delete(0, tk.END)
-        salary_entry.delete(0, tk.END)
-        contact_entry.delete(0, tk.END)
-        start_date_entry.delete(0, tk.END)
+        name_entry.delete_by_student_id(0, tk.END)
+        salary_entry.delete_by_student_id(0, tk.END)
+        contact_entry.delete_by_student_id(0, tk.END)
+        start_date_entry.delete_by_student_id(0, tk.END)
         start_date_entry.insert(0, datetime.now().strftime('%d/%m/%Y'))
-        end_date_entry.delete(0, tk.END)
-        cpf_entry.delete(0, tk.END)
-        rg_entry.delete(0, tk.END)
-        cnh_entry.delete(0, tk.END)
-        extra_info_entry.delete("1.0", tk.END)
+        end_date_entry.delete_by_student_id(0, tk.END)
+        cpf_entry.delete_by_student_id(0, tk.END)
+        rg_entry.delete_by_student_id(0, tk.END)
+        cnh_entry.delete_by_student_id(0, tk.END)
+        extra_info_entry.delete_by_student_id("1.0", tk.END)
         extra_info_entry.insert("1.0", "Opcional")
 
     def back(self):

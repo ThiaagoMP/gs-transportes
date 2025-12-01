@@ -24,6 +24,24 @@ class DriverBonusRepository:
                 conn.close()
         return None
 
+    def sum_bonus(self, driver_id: int, period: str = "total") -> float:
+        conn = create_connection(self.db_file)
+        cursor = conn.cursor()
+
+        sql = "SELECT SUM(Amount) FROM DriverBonus WHERE DriverID = ?"
+        params = [driver_id]
+
+        if period == "year":
+            sql += " AND strftime('%Y', BonusDate) = strftime('%Y', 'now')"
+        elif period == "month":
+            sql += " AND strftime('%Y-%m', BonusDate) = strftime('%Y-%m', 'now')"
+
+        cursor.execute(sql, params)
+        result = cursor.fetchone()
+        conn.close()
+        return float(result[0]) if result and result[0] is not None else 0.0
+
+
     def get_all(self) -> List[DriverBonus]:
         sql = '''SELECT * FROM DriverBonus'''
         conn = create_connection(self.db_file)

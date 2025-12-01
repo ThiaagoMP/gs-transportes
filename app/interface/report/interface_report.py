@@ -1,195 +1,441 @@
 import tkinter as tk
-from tkinter import ttk
-from tkcalendar import DateEntry
-import sqlite3
-from datetime import datetime
+from tkinter import ttk, messagebox, filedialog
+from datetime import datetime, timedelta
+from collections import defaultdict
+import os
+import numpy as np
+
 from app.components.list_rounded_button import ListRoundedButton
+from app.components.custom_calendar import CustomCalendar
+from app.interface.report.report_graphics import ReportGraphics
+
+from app.repositories.report_repository import (
+    get_maintenances, get_refuelings, get_driver_bonuses,
+    get_driver_salaries_proportional, get_student_payments,
+    get_route_extra_payments, get_route_expense_payments,
+    get_trips_profit,
+    get_vehicle_plate_map,
+    get_route_receipts,
+    get_all_receipts_monthly,
+    get_all_expenses_monthly,
+)
+
+try:
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    from matplotlib.figure import Figure
+
+    MATPLOTLIB_AVAILABLE = True
+except Exception:
+    MATPLOTLIB_AVAILABLE = False
+
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas as pdfcanvas
+
+    REPORTLAB_AVAILABLE = True
+except Exception:
+    REPORTLAB_AVAILABLE = False
+
 
 class InterfaceRelatorio:
+    """
+    Nova interface de Relatórios — filtro apenas por data.
+    Usa funções do repo (report_repository) para obter dados.
+    Renderiza tabela, resumo e dashboard de gráficos em abas.
+    """
+
     def __init__(self, parent, db_path):
         self.parent = parent
         self.db_path = db_path
-        self.vehicle_options = self.load_vehicle_options()
-        self.route_options = self.load_route_options()
-        self.driver_options = self.load_driver_options()
 
         self.bg_main = "#1c1c1e"
         self.bg_button = "#3a3f47"
         self.fg_text = "#ffffff"
         self.accent = "#ff7f32"
+        self.font_label = ("Segoe UI", 14, "bold")
+        self.font_button = ("Segoe UI", 12, "bold")
+        self.font_title = ("Segoe UI", 28, "bold")
+        self.font_tree = ("Segoe UI", 11)
 
-        self.font_label = ("Segoe UI", 18, "bold")
-        self.font_button = ("Segoe UI", 18, "bold")
-        self.font_title = ("Segoe UI", 36, "bold")
-        self.font_tree = ("Segoe UI", 14)
+        self.report_rows = []
+        self.totals = {"in": 0.0, "out": 0.0}
+
+        self.graphics = ReportGraphics(theme="dark")
 
     def show(self):
-        for widget in self.parent.winfo_children():
-            widget.destroy()
-
+        for w in self.parent.winfo_children():
+            w.destroy()
         self.parent.configure(bg=self.bg_main)
 
-        main_frame = tk.Frame(self.parent, bg=self.bg_main)
-        main_frame.pack(fill="both", expand=True, padx=50, pady=40)
+        frame = tk.Frame(self.parent, bg=self.bg_main)
+        frame.pack(fill="both", expand=True, padx=24, pady=20)
 
-        title_label = tk.Label(main_frame, text="Relatórios", font=self.font_title,
-                               bg=self.bg_main, fg=self.accent, anchor="w")
-        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 30), sticky="w")
+        title = tk.Label(frame, text="Relatório Consolidado", font=self.font_title, bg=self.bg_main, fg=self.accent)
+        title.pack(anchor="w", pady=(0, 12))
 
-        filter_frame = tk.Frame(main_frame, bg=self.bg_main, bd=2, relief="solid")
-        filter_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
+        controls = tk.Frame(frame, bg=self.bg_main)
+        controls.pack(fill="x", pady=(0, 12))
 
-        label_style = {"bg": self.bg_main, "fg": self.fg_text, "font": self.font_label}
+        lbl_style = {"bg": self.bg_main, "fg": self.fg_text, "font": self.font_label}
+        tk.Label(controls, text="Período - De:", **lbl_style).grid(row=0, column=0, padx=6, pady=6, sticky="w")
+        data_30d_ago = (datetime.now() - timedelta(days=30)).strftime("%d/%m/%Y")
+        self.start_var = tk.StringVar(value=data_30d_ago)
+        self.start_entry = tk.Entry(controls, textvariable=self.start_var, width=14, bg=self.bg_button,
+                                    fg=self.fg_text, justify="center")
+        self.start_entry.grid(row=0, column=1, padx=6, pady=6, sticky="w")
+        self.start_entry.bind("<Button-1>", lambda e: self.open_calendar(self.start_var))
 
-        tk.Label(filter_frame, text="Selecione o Veículo:", **label_style).grid(row=0, column=0, padx=15, pady=15, sticky="w")
-        self.vehicle_combobox = ttk.Combobox(filter_frame, values=self.vehicle_options, width=50, state="readonly",
-                                             font=("Segoe UI", 14))
-        self.vehicle_combobox.grid(row=0, column=1, padx=15, pady=15, sticky="w")
-        self.vehicle_combobox.set("Todos" if self.vehicle_options else "")
+        tk.Label(controls, text="Até:", **lbl_style).grid(row=0, column=2, padx=6, pady=6, sticky="w")
+        self.end_var = tk.StringVar(value=datetime.now().strftime("%d/%m/%Y"))
+        self.end_entry = tk.Entry(controls, textvariable=self.end_var, width=14, bg=self.bg_button,
+                                  fg=self.fg_text, justify="center")
+        self.end_entry.grid(row=0, column=3, padx=6, pady=6, sticky="w")
+        self.end_entry.bind("<Button-1>", lambda e: self.open_calendar(self.end_var))
 
-        tk.Label(filter_frame, text="Selecione a Linha:", **label_style).grid(row=1, column=0, padx=15, pady=15, sticky="w")
-        self.route_combobox = ttk.Combobox(filter_frame, values=self.route_options, width=50, state="readonly",
-                                           font=("Segoe UI", 14))
-        self.route_combobox.grid(row=1, column=1, padx=15, pady=15, sticky="w")
-        self.route_combobox.set("Todos" if self.route_options else "")
-
-        tk.Label(filter_frame, text="Selecione o Motorista:", **label_style).grid(row=2, column=0, padx=15, pady=15, sticky="w")
-        self.driver_combobox = ttk.Combobox(filter_frame, values=self.driver_options, width=50, state="readonly",
-                                            font=("Segoe UI", 14))
-        self.driver_combobox.grid(row=2, column=1, padx=15, pady=15, sticky="w")
-        self.driver_combobox.set("Todos" if self.driver_options else "")
-
-        date_frame = tk.Frame(filter_frame, bg=self.bg_main)
-        date_frame.grid(row=3, column=0, columnspan=2, padx=15, pady=15, sticky="w")
-        tk.Label(date_frame, text="De:", **label_style).grid(row=0, column=0, padx=15, pady=10, sticky="w")
-        self.start_date = DateEntry(date_frame, width=25, background=self.accent, foreground=self.fg_text,
-                                    borderwidth=2, date_pattern="dd/mm/yyyy", font=("Segoe UI", 14))
-        self.start_date.grid(row=0, column=1, padx=15, pady=10, sticky="w")
-        self.start_date.set_date(datetime.now().strftime('%d/%m/%Y'))
-
-        tk.Label(date_frame, text="Até:", **label_style).grid(row=0, column=2, padx=15, pady=10, sticky="w")
-        self.end_date = DateEntry(date_frame, width=25, background=self.accent, foreground=self.fg_text,
-                                  borderwidth=2, date_pattern="dd/mm/yyyy", font=("Segoe UI", 14))
-        self.end_date.grid(row=0, column=3, padx=15, pady=10, sticky="w")
-        self.end_date.set_date(datetime.now().strftime('%d/%m/%Y'))
-
-        ListRoundedButton(filter_frame, text="Gerar Relatório", command=self.generate_report,
+        btns = tk.Frame(controls, bg=self.bg_main)
+        btns.grid(row=0, column=4, padx=12, pady=6, sticky="w")
+        ListRoundedButton(btns, text="Gerar Relatório", command=self.generate_report,
                           bg=self.bg_button, fg=self.fg_text, hover_bg=self.accent,
-                          width=350, height=65, font=self.font_button).grid(row=4, column=0, columnspan=2, padx=20, pady=25)
+                          width=180, height=44, font=self.font_button).grid(row=0, column=0, padx=6)
+        ListRoundedButton(btns, text="Exportar PDF (Tabela)", command=self._export_all_pdf,
+                          bg=self.bg_button, fg=self.fg_text, hover_bg=self.accent,
+                          width=160, height=44, font=self.font_button).grid(row=0, column=1, padx=6)
+        ListRoundedButton(btns, text="Abrir Dashboard (Gráficos)", command=self.open_dashboard_tabs,
+                          bg=self.bg_button, fg=self.fg_text, hover_bg=self.accent,
+                          width=200, height=44, font=self.font_button).grid(row=0, column=2, padx=6)
 
-        self.result_frame = tk.Frame(main_frame, bg=self.bg_main, bd=2, relief="solid")
-        self.result_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=20, pady=20)
+        self.result_frame = tk.Frame(frame, bg=self.bg_main)
+        self.result_frame.pack(fill="both", expand=True, pady=(12, 0))
 
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("Treeview", font=self.font_tree, rowheight=35, background=self.bg_button,
-                        fieldbackground=self.bg_button, foreground=self.fg_text)
-        style.configure("Treeview.Heading", font=("Segoe UI", 16, "bold"),
-                        background=self.accent, foreground=self.fg_text)
+    def open_calendar(self, target_var):
+        def set_date(d):
+            target_var.set(d.strftime("%d/%m/%Y"))
 
-    def load_vehicle_options(self):
+        CustomCalendar(self.parent, callback=set_date)
+
+    def _to_sql_date(self, ddmmyyyy: str) -> str:
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT license_plate FROM Vehicle")
-                plates = [row[0] for row in cursor.fetchall()]
-                return ["Todos"] + plates if plates else ["Nenhum veículo cadastrado"]
-        except sqlite3.Error as e:
-            print(f"Erro ao carregar veículos: {str(e)}")
-            return ["Erro ao carregar veículos"]
+            dt = datetime.strptime(ddmmyyyy, "%d/%m/%Y").date()
+            return dt.strftime("%Y-%m-%d")
+        except Exception:
+            return datetime.now().strftime("%Y-%m-%d")
 
-    def load_route_options(self):
+    def _to_month_key(self, date_s: str) -> str:
+        """Converte 'YYYY-MM-DD' para 'YYYY-MM'"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT Name FROM Route")
-                routes = [row[0] for row in cursor.fetchall()]
-                return ["Todos"] + routes if routes else ["Nenhuma linha cadastrada"]
-        except sqlite3.Error as e:
-            print(f"Erro ao carregar linhas: {str(e)}")
-            return ["Erro ao carregar linhas"]
-
-    def load_driver_options(self):
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT Name FROM Driver")
-                drivers = [row[0] for row in cursor.fetchall()]
-                return ["Todos"] + drivers if drivers else ["Nenhum motorista cadastrado"]
-        except sqlite3.Error as e:
-            print(f"Erro ao carregar motoristas: {str(e)}")
-            return ["Erro ao carregar motoristas"]
+            return date_s[:7]
+        except Exception:
+            return "9999-01"
 
     def generate_report(self):
-        for widget in self.result_frame.winfo_children():
-            widget.destroy()
+        for w in self.result_frame.winfo_children():
+            w.destroy()
+        self.report_rows = []
+        self.totals = {"in": 0.0, "out": 0.0}
+
+        start = self._to_sql_date(self.start_var.get())
+        end = self._to_sql_date(self.end_var.get())
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                start_date = self.start_date.get().replace('/', '-')
-                end_date = self.end_date.get().replace('/', '-')
-
-                vehicle_plate = self.vehicle_combobox.get()
-                route_name = self.route_combobox.get()
-                driver_name = self.driver_combobox.get()
-
-                query = """
-                    SELECT m.StartDate, v.LicensePlate, m.Description, m.Amount, m.Preventive
-                    FROM Maintenance m
-                    JOIN Vehicle v ON m.VehicleID = v.VehicleID
-                    LEFT JOIN Route r ON r.VehicleID = v.VehicleID
-                    LEFT JOIN TripDriver td ON td.TripID IN (SELECT TripID FROM Trip WHERE VehicleID = v.VehicleID)
-                    LEFT JOIN Driver d ON d.DriverID = td.DriverID
-                    WHERE m.StartDate BETWEEN ? AND ?
-                """
-                params = [start_date, end_date]
-
-                if vehicle_plate != "Todos":
-                    query += " AND v.LicensePlate = ?"
-                    params.append(vehicle_plate)
-                if route_name != "Todos":
-                    query += " AND r.Name = ?"
-                    params.append(route_name)
-                if driver_name != "Todos":
-                    query += " AND d.Name = ?"
-                    params.append(driver_name)
-
-                cursor.execute(query, params)
-                maintenances = cursor.fetchall()
-
-                if not maintenances:
-                    tk.Label(self.result_frame, text="Nenhum registro encontrado.", font=("Segoe UI", 12),
-                             bg=self.bg_main, fg=self.fg_text).pack(pady=10)
-                    return
-
-                tree = ttk.Treeview(self.result_frame,
-                                    columns=("Data", "Placa", "Descrição", "Valor (R$)", "Preventiva"),
-                                    show="headings", height=10)
-                tree.heading("Data", text="Data")
-                tree.heading("Placa", text="Placa")
-                tree.heading("Descrição", text="Descrição")
-                tree.heading("Valor (R$)", text="Valor (R$)")
-                tree.heading("Preventiva", text="Preventiva")
-                tree.column("Data", width=120)
-                tree.column("Placa", width=120)
-                tree.column("Descrição", width=250)
-                tree.column("Valor (R$)", width=120)
-                tree.column("Preventiva", width=100)
-                tree.pack(fill="both", expand=True)
-
-                total_cost = 0
-                for maint in maintenances:
-                    date, plate, desc, amount, preventive = maint
-                    tree.insert("", "end", values=(date, plate, desc, f"{amount:.2f}", "Sim" if preventive else "Não"))
-                    total_cost += amount
-
-                tk.Label(self.result_frame, text=f"Total de Custos: R$ {total_cost:.2f}",
-                         font=("Segoe UI", 12, "bold"), bg=self.bg_main, fg=self.fg_text).pack(pady=15)
-
-        except sqlite3.Error as e:
-            tk.Label(self.result_frame, text=f"Erro ao gerar relatório: {str(e)}",
-                     font=("Segoe UI", 12), fg="red", bg=self.bg_main).pack(pady=10)
+            maints = get_maintenances(self.db_path, start, end)
+            refuels = get_refuelings(self.db_path, start, end)
+            bonuses = get_driver_bonuses(self.db_path, start, end)
+            salaries = get_driver_salaries_proportional(self.db_path, start, end)
+            stud_pays = get_student_payments(self.db_path, start, end)
+            extra_pays = get_route_extra_payments(self.db_path, start, end)
+            route_exps = get_route_expense_payments(self.db_path, start, end)
+            trips = get_trips_profit(self.db_path, start, end)
         except Exception as e:
-            tk.Label(self.result_frame, text=f"Erro inesperado: {str(e)}",
-                     font=("Segoe UI", 12), fg="red", bg=self.bg_main).pack(pady=10)
+            messagebox.showerror("Erro", f"Erro ao consultar repositório: {e}")
+            return
+
+        for r in maints + refuels + route_exps + salaries + bonuses:
+            date_s, cat, plate, desc, amt, extra = r
+            val = -abs(float(amt))
+            self.report_rows.append((date_s, cat, plate, desc, val, extra))
+            self.totals["out"] += abs(float(amt))
+
+        for r in stud_pays + extra_pays + trips:
+            date_s, cat, plate, desc, amt, extra = r
+            val = float(amt)
+            self.report_rows.append((date_s, cat, plate, desc, val, extra))
+            self.totals["in"] += float(amt)
+
+        try:
+            self.report_rows.sort(key=lambda x: x[0] or "")
+        except Exception:
+            pass
+
+        cols = ("Data", "Categoria", "Placa/Rota", "Descrição", "Valor (R$)")
+        tree = ttk.Treeview(self.result_frame, columns=cols, show="headings", height=16)
+
+        style = ttk.Style()
+        style.theme_use("default")
+        style.configure("Treeview", background="#3a3f47", foreground="#ffffff", fieldbackground="#3a3f47",
+                        font=self.font_tree)
+        style.configure("Treeview.Heading", background="#2a2e34", foreground="#ff7f32", font=self.font_tree)
+
+        for c in cols:
+            tree.heading(c, text=c)
+        tree.column("Descrição", width=360)
+        tree.pack(fill="both", expand=True, pady=(6, 10))
+
+        if not self.report_rows:
+            tk.Label(self.result_frame, text="Nenhum registro encontrado no período.", bg=self.bg_main,
+                     fg=self.fg_text, font=("Segoe UI", 12)).pack(pady=12)
+            return
+
+        for date_s, cat, plate, desc, val, extra in self.report_rows:
+            tag = "saida" if val < 0 else "entrada"
+            tree.tag_configure("entrada", foreground="#8adf8a")
+            tree.tag_configure("saida", foreground="#ff8a8a")
+
+            tree.insert("", "end", values=(date_s or "", cat, plate or "", desc or "", f"{val:.2f}"), tags=(tag,))
+
+        total_in = self.totals["in"]
+        total_out = self.totals["out"]
+        net = total_in - total_out
+
+        summary = tk.Frame(self.result_frame, bg=self.bg_main)
+        summary.pack(fill="x", pady=(8, 0))
+        tk.Label(summary, text=f"Total Entradas: R$ {total_in:.2f}", bg=self.bg_main, fg="#8adf8a",
+                 font=("Segoe UI", 12, "bold")).pack(side="left", padx=8)
+        tk.Label(summary, text=f"Total Saídas: R$ {total_out:.2f}", bg=self.bg_main, fg="#ff8a8a",
+                 font=("Segoe UI", 12, "bold")).pack(side="left", padx=8)
+        tk.Label(summary, text=f"Lucro Líquido: R$ {net:.2f}", bg=self.bg_main, fg=self.accent,
+                 font=("Segoe UI", 12, "bold")).pack(side="left", padx=8)
+
+    def open_dashboard_tabs(self):
+        if not MATPLOTLIB_AVAILABLE:
+            messagebox.showwarning("Biblioteca ausente",
+                                   "Instale 'matplotlib' (`pip install matplotlib`) para gráficos.")
+            return
+        if not self.report_rows:
+            messagebox.showinfo("Sem dados", "Gere o relatório antes de abrir o dashboard.")
+            return
+
+        start = self._to_sql_date(self.start_var.get())
+        end = self._to_sql_date(self.end_var.get())
+
+        # =========================================================================
+        # 1. Obter Mapeamentos
+        # =========================================================================
+        try:
+            veiculos_map = get_vehicle_plate_map(self.db_path)
+        except Exception:
+            veiculos_map = {}
+
+        # =========================================================================
+        # 2. Construir Agregações
+        # =========================================================================
+
+        lucro_por_veiculo = defaultdict(float)
+        gastos_por_veiculo = defaultdict(float)
+        recebimentos_por_aluno = defaultdict(float)
+        despesa_por_categoria = defaultdict(float)
+        timeline_monthly = defaultdict(lambda: {"in": 0.0, "out": 0.0, "net": 0.0})
+
+        for date_s, cat, plate, desc, val, extra in self.report_rows:
+            month_key = self._to_month_key(date_s)
+
+            # timeline
+            if val >= 0:
+                timeline_monthly[month_key]["in"] += val
+            else:
+                timeline_monthly[month_key]["out"] += -val
+            timeline_monthly[month_key]["net"] += val
+
+            # lucro e gastos por veículo
+            if plate and plate in veiculos_map:
+                vehicle_name = veiculos_map[plate]
+                lucro_por_veiculo[vehicle_name] += val
+
+                if val < 0 and cat in ["Manutenção", "Abastecimento"]:
+                    gastos_por_veiculo[vehicle_name] += -val
+
+            # recebimentos por aluno
+            if cat and "pagamento aluno" in cat.lower():
+                aluno = (desc or "").strip()
+                if aluno:
+                    recebimentos_por_aluno[aluno] += val
+
+            # despesas por categoria
+            if val < 0:
+                despesa_por_categoria[cat or "Outro"] += -val
+
+        # Dicionários Agregados para Plotagem Mensal (Chamando funções do repositório)
+        try:
+            rec_mensal = get_all_receipts_monthly(self.db_path, start, end)
+            pagamentos_alunos_mes = rec_mensal.get("student_payments", {})
+            extras_linha_mes = rec_mensal.get("route_extras", {})
+
+            despesas_por_mes = get_all_expenses_monthly(self.db_path, start, end)
+
+            # Reutiliza o lucro calculado internamente
+            lucros_por_mes = {k: v["net"] for k, v in timeline_monthly.items()}
+
+            receita_por_linha = get_route_receipts(self.db_path, start, end)
+
+        except Exception as e:
+            messagebox.showerror("Erro de Repositório", f"Falha ao obter dados mensais/rota: {e}")
+            return
+
+        # =========================================================================
+        # 3. Preparar lista de matplotlib.Figure usando ReportGraphics
+        # =========================================================================
+        figs = []
+
+        # 1) NOVO: Fluxo Financeiro Mensal (Barras Agrupadas) - Substitui os 3 gráficos antigos
+        try:
+            fig_fluxo = self.graphics.bar_financial_flow_monthly(
+                pagamentos_alunos_mes,
+                extras_linha_mes,
+                despesas_por_mes,
+                lucros_por_mes
+            )
+            if fig_fluxo is not None:
+                figs.append(fig_fluxo)
+        except Exception as e:
+            # print(f"Erro ao gerar gráfico de fluxo mensal: {e}")
+            pass
+
+        # 2) Lucro por veículo (Barra)
+        if lucro_por_veiculo:
+            vnames = list(lucro_por_veiculo.keys())
+            vvals = [lucro_por_veiculo[k] for k in vnames]
+            try:
+                figs.append(self.graphics.bar_lucro_por_veiculo(vnames, vvals))
+            except Exception:
+                pass
+
+        # 3) Gastos por Veículo (Pizza)
+        if gastos_por_veiculo:
+            try:
+                figs.append(self.graphics.pie_gastos_por_veiculo(gastos_por_veiculo))
+            except Exception:
+                pass
+
+        # 4) Lucro por Veículo (Pizza)
+        if lucro_por_veiculo:
+            try:
+                figs.append(self.graphics.pie_lucro_por_veiculo(lucro_por_veiculo))
+            except Exception:
+                pass
+
+        # 5) Receita por Rota Pie Chart
+        if receita_por_linha:
+            try:
+                figs.append(self.graphics.plot_revenue_by_route_pie(receita_por_linha))
+            except Exception:
+                pass
+
+        # 6) Recebimentos por aluno (top 20)
+        if recebimentos_por_aluno:
+            top_students = sorted(recebimentos_por_aluno.items(), key=lambda x: x[1], reverse=True)[:20]
+            alunos = [a for a, _ in top_students]
+            avals = [v for _, v in top_students]
+            try:
+                figs.append(self.graphics.bar_recebimentos_por_aluno(alunos, avals))
+            except Exception:
+                pass
+
+        # 7) Despesas por Categoria Pie Chart (Se o ReportGraphics tiver o método)
+        if despesa_por_categoria and hasattr(self.graphics, "pie_despesas_por_categoria"):
+            try:
+                figs.append(self.graphics.pie_despesas_por_categoria(despesa_por_categoria))
+            except Exception:
+                pass
+
+        # =========================================================================
+        # 4. Construir janela com abas (Resto do código mantido)
+        # =========================================================================
+        win = tk.Toplevel(self.parent)
+        win.title("Dashboard de Gráficos")
+        win.configure(bg=self.bg_main)
+        win.geometry("1100x700")
+
+        top_bar = tk.Frame(win, bg=self.bg_main)
+        top_bar.pack(fill="x", padx=8, pady=6)
+        tk.Button(top_bar, text="Salvar todos PNG", bg=self.bg_button, fg=self.fg_text,
+                  command=lambda: self._save_all_png(figs)).pack(side="right", padx=6)
+        tk.Button(top_bar, text="Exportar todos para PDF", bg=self.bg_button, fg=self.fg_text,
+                  command=lambda: self._export_all_pdf(figs)).pack(side="right", padx=6)
+
+        style = ttk.Style()
+        style.theme_create("dark_notebook", parent="alt", settings={
+            "TNotebook": {"configure": {"background": self.bg_main, "bordercolor": self.bg_button}},
+            "TNotebook.Tab": {
+                "configure": {"background": self.bg_button, "foreground": self.fg_text, "padding": [10, 5],
+                              "font": self.font_button},
+                "map": {"background": [("selected", self.accent)],
+                        "foreground": [("selected", self.bg_main)]}}
+        })
+        style.theme_use("dark_notebook")
+
+        notebook = ttk.Notebook(win)
+        notebook.pack(fill="both", expand=True, padx=8, pady=8)
+
+        # Adiciona uma aba para cada figura
+        for i, fig in enumerate(figs):
+            frame = tk.Frame(notebook, bg=self.bg_main)
+            notebook.add(frame, text=f"Gráfico {i + 1}")
+            try:
+                canvas = FigureCanvasTkAgg(fig, master=frame)
+                canvas.draw()
+                canvas.get_tk_widget().pack(fill="both", expand=True)
+            except Exception as e:
+                tk.Label(frame, text=f"Erro ao renderizar gráfico: {e}", bg=self.bg_main, fg="red").pack(fill="both",
+                                                                                                         expand=True)
+
+    def _save_all_png(self, figs):
+        if not figs:
+            messagebox.showinfo("Sem gráficos", "Não há gráficos para salvar.")
+            return
+        d = filedialog.askdirectory(title="Escolha a pasta para salvar PNGs")
+        if not d:
+            return
+        try:
+            for idx, fig in enumerate(figs, start=1):
+                fname = os.path.join(d, f"grafico_{idx}_{datetime.now().strftime('%Y%m%d%H%M%S')}.png")
+                fig.savefig(fname, bbox_inches='tight', dpi=150)
+            messagebox.showinfo("OK", "PNG(s) salvos com sucesso.")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao salvar PNGs: {e}")
+
+    def _export_all_pdf(self, figs):
+        if not REPORTLAB_AVAILABLE:
+            messagebox.showwarning("Biblioteca ausente",
+                                   "Instale reportlab (`pip install reportlab`) para exportar PDF.")
+            return
+        if not figs:
+            messagebox.showinfo("Sem gráficos", "Não há gráficos para exportar.")
+            return
+        fpath = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF files", "*.pdf")])
+        if not fpath:
+            return
+        try:
+            from reportlab.lib.utils import ImageReader
+            c = pdfcanvas.Canvas(fpath, pagesize=A4)
+            width, height = A4
+            tmp_files = []
+            for fig in figs:
+                tmp = f"_tmp_{datetime.now().timestamp()}.png"
+                fig.savefig(tmp, bbox_inches='tight', dpi=150)
+                tmp_files.append(tmp)
+                try:
+                    img = ImageReader(tmp)
+                    img_width, img_height = A4[0] - 80, A4[1] - 240
+                    c.drawImage(img, 40, 120, width=img_width, height=img_height, preserveAspectRatio=True)
+                    c.showPage()
+                except Exception as img_err:
+                    c.showPage()
+
+            c.save()
+            for t in tmp_files:
+                try:
+                    os.remove(t)
+                except Exception:
+                    pass
+            messagebox.showinfo("OK", f"PDF salvo em {fpath}")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao exportar PDF: {e}")

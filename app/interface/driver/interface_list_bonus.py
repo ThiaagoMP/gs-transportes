@@ -41,8 +41,9 @@ class InterfaceBonificacoesMotorista:
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
         main_frame.pack(padx=30, pady=10, fill="both", expand=True)
 
-        list_frame = tk.Frame(main_frame, bg=self.bg_main)
-        list_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # Container do Treeview + Scrollbar
+        tree_container = tk.Frame(main_frame, bg=self.bg_main)
+        tree_container.pack(fill="both", expand=True, padx=10, pady=10)
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -59,8 +60,9 @@ class InterfaceBonificacoesMotorista:
                   background=[("selected", "#333333")],
                   foreground=[("selected", "#ffffff")])
 
+        # Treeview
         self.tree = ttk.Treeview(
-            list_frame,
+            tree_container,
             columns=("Data", "Valor", "Descrição"),
             show="headings",
             height=15
@@ -76,9 +78,15 @@ class InterfaceBonificacoesMotorista:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=width, stretch=stretch)
 
-        self.tree.pack(fill="both", expand=True, pady=10)
+        # Scrollbar vertical
+        scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.tree.configure(yscrollcommand=scrollbar.set)
 
-        button_frame = tk.Frame(list_frame, bg=self.bg_main)
+        # Treeview preenchendo o espaço restante
+        self.tree.pack(side="left", fill="both", expand=True)
+
+        button_frame = tk.Frame(main_frame, bg=self.bg_main)
         button_frame.pack(pady=10)
 
         actions = [

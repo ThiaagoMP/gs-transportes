@@ -23,6 +23,27 @@ class StudentPaymentRepository:
                 conn.close()
         return None
 
+    def sum_payments_by_route(self, route_id: int) -> float:
+        try:
+            conn = create_connection(self.db_file)
+            cursor = conn.cursor()
+            cursor.execute("""
+                           SELECT SUM(sp.Amount)
+                           FROM StudentPayment sp
+                                    JOIN Student s ON s.StudentID = sp.StudentID
+                                    JOIN RouteStudent rs ON rs.StudentID = s.StudentID
+                           WHERE rs.RouteID = ?
+                             AND sp.Paid = 1
+                           """, (route_id,))
+            result = cursor.fetchone()
+            return result[0] if result and result[0] is not None else 0.0
+        except Exception as e:
+            print(f"Erro ao somar pagamentos dos alunos da rota: {e}")
+            return 0.0
+        finally:
+            if conn:
+                conn.close()
+
     def get_all(self) -> List[StudentPayment]:
         sql = '''SELECT * FROM StudentPayment'''
         conn = create_connection(self.db_file)
