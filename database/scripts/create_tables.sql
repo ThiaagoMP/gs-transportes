@@ -1,4 +1,3 @@
--- Criando a tabela Vehicle
 CREATE TABLE IF NOT EXISTS Vehicle (
     VehicleID INTEGER PRIMARY KEY,
     AvgKmPerLiter REAL NOT NULL,
@@ -13,7 +12,6 @@ CREATE TABLE IF NOT EXISTS Vehicle (
     ManufacturingYear INTEGER NOT NULL
 );
 
--- Criando a tabela Driver
 CREATE TABLE IF NOT EXISTS Driver (
     DriverID INTEGER PRIMARY KEY,
     Name VARCHAR(50) NOT NULL,
@@ -27,7 +25,6 @@ CREATE TABLE IF NOT EXISTS Driver (
     ExtraInfo VARCHAR(255)
 );
 
--- Criando a tabela Route
 CREATE TABLE IF NOT EXISTS Route (
     RouteID INTEGER PRIMARY KEY,
     VehicleID INTEGER NOT NULL,
@@ -40,7 +37,6 @@ CREATE TABLE IF NOT EXISTS Route (
     FOREIGN KEY (VehicleID) REFERENCES Vehicle(VehicleID)
 );
 
--- Criando a tabela Student
 CREATE TABLE IF NOT EXISTS Student (
     StudentID INTEGER PRIMARY KEY,
     Contact VARCHAR(100) NOT NULL,
@@ -53,7 +49,6 @@ CREATE TABLE IF NOT EXISTS Student (
     CPF VARCHAR(14) NOT NULL
 );
 
--- Criando a tabela RouteStudent
 CREATE TABLE IF NOT EXISTS RouteStudent (
     RouteID INTEGER,
     StudentID INTEGER,
@@ -64,7 +59,6 @@ CREATE TABLE IF NOT EXISTS RouteStudent (
     FOREIGN KEY (StudentID) REFERENCES Student(StudentID)
 );
 
--- Criando a tabela StudentPayment
 CREATE TABLE IF NOT EXISTS StudentPayment (
     StudentPaymentID INTEGER PRIMARY KEY,
     StudentID INTEGER NOT NULL,
@@ -76,7 +70,6 @@ CREATE TABLE IF NOT EXISTS StudentPayment (
     FOREIGN KEY (StudentID) REFERENCES Student(StudentID)
 );
 
--- Criando a tabela ExtraPayment
 CREATE TABLE IF NOT EXISTS RouteExtraPayment (
     ExtraPaymentID INTEGER PRIMARY KEY,
     RouteID INTEGER NOT NULL,
@@ -97,7 +90,6 @@ CREATE TABLE IF NOT EXISTS RouteExpensePayment (
     FOREIGN KEY (RouteID) REFERENCES Route(RouteID)
 );
 
--- Criando a tabela Maintenance
 CREATE TABLE IF NOT EXISTS Maintenance (
     MaintenanceID INTEGER PRIMARY KEY,
     VehicleID INTEGER NOT NULL,
@@ -112,7 +104,6 @@ CREATE TABLE IF NOT EXISTS Maintenance (
     FOREIGN KEY (VehicleID) REFERENCES Vehicle(VehicleID)
 );
 
--- Criando a tabela Refueling
 CREATE TABLE IF NOT EXISTS Refueling (
     RefuelingID INTEGER PRIMARY KEY,
     VehicleID INTEGER NOT NULL,
@@ -127,7 +118,6 @@ CREATE TABLE IF NOT EXISTS Refueling (
     FOREIGN KEY (VehicleID) REFERENCES Vehicle(VehicleID)
 );
 
--- Criando a tabela Trip
 CREATE TABLE IF NOT EXISTS Trip (
     TripID INTEGER PRIMARY KEY,
     VehicleID INTEGER NOT NULL,
@@ -149,7 +139,6 @@ CREATE TABLE IF NOT EXISTS TripDriver (
     FOREIGN KEY (DriverID) REFERENCES Driver(DriverID)
 );
 
--- Criando a tabela RouteDriver
 CREATE TABLE IF NOT EXISTS RouteDriver (
     RouteID INTEGER,
     DriverID INTEGER,
@@ -158,7 +147,6 @@ CREATE TABLE IF NOT EXISTS RouteDriver (
     FOREIGN KEY (DriverID) REFERENCES Driver(DriverID)
 );
 
--- Criando a tabela Bonus
 CREATE TABLE IF NOT EXISTS DriverBonus (
     BonusID INTEGER PRIMARY KEY,
     DriverID INTEGER NOT NULL,

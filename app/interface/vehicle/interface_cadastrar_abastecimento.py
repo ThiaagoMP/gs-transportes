@@ -224,7 +224,7 @@ class InterfaceAddRefueling:
 
     def open_calendar(self, date_entry):
         def callback(selected_date):
-            date_entry.delete_by_student_id(0, tk.END)
+            date_entry.delete(0, tk.END)
             date_entry.insert(0, selected_date.strftime('%d/%m/%Y'))
 
         CustomCalendar(self.parent, callback=callback, initial_date=datetime.now().date())
@@ -233,7 +233,7 @@ class InterfaceAddRefueling:
         file_path = askopenfilename(filetypes=[("PDF", "*.pdf"), ("JPEG", "*.jpg"), ("PNG", "*.png")], )
         if file_path:
             receipt_path_entry.config(state="normal")
-            receipt_path_entry.delete_by_student_id(0, tk.END)
+            receipt_path_entry.delete(0, tk.END)
             receipt_path_entry.insert(0, file_path)
             receipt_path_entry.config(state="readonly")
 
@@ -264,6 +264,8 @@ class InterfaceAddRefueling:
             messagebox.showerror("Erro", "Quilometragem deve ser um número válido.")
             return
 
+        print("ola")
+
         try:
             price_per_liter = float(price_per_liter)
             liters = int(liters)
@@ -280,13 +282,12 @@ class InterfaceAddRefueling:
                     messagebox.showerror("Erro", f"Falha ao ler o comprovante: {str(e)}")
                     return
 
-                refueling = Refueling(
-                    None, self.vehicle_id, price_per_liter, liters, km_traveled, description, refueling_date_sql,
-                    fuel_type,
-                    receipt, posto
-                )
-                self.refueling_repo.add(refueling)
-                messagebox.showinfo("Sucesso", "Abastecimento cadastrado com sucesso!")
+            refueling = Refueling(None, self.vehicle_id, price_per_liter, liters, km_traveled, description, refueling_date_sql,
+                fuel_type,
+                receipt, posto
+            )
+            self.refueling_repo.add(refueling)
+            messagebox.showinfo("Sucesso", "Abastecimento cadastrado com sucesso!")
             self.back()
         except ValueError as e:
             messagebox.showerror("Erro", f"Erro ao salvar: {str(e)}")

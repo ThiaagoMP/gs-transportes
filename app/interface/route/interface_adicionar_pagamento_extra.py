@@ -8,8 +8,6 @@ from app.repositories.route_extra_payment_repository import RouteExtraPaymentRep
 from app.models.route_extra_payment import RouteExtraPayment
 from app.components.custom_calendar import CustomCalendar
 from app.components.list_rounded_button import ListRoundedButton
-from app.repositories.vehicle_repository import VehicleRepository
-
 
 def add_placeholder(entry: ttk.Entry, placeholder: str):
     entry._ph_text = placeholder
@@ -172,7 +170,7 @@ class InterfaceAddExtraPayment:
     def open_calendar(self, date_entry):
         def callback(selected_date):
             date_entry.config(state="normal")
-            date_entry.delete_by_student_id(0, tk.END)
+            date_entry.delete(0, tk.END)
             date_entry.insert(0, selected_date.strftime('%d/%m/%Y'))
             date_entry.config(state="readonly")
 

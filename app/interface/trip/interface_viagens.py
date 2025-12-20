@@ -56,14 +56,12 @@ class InterfaceViagem:
             foreground=[("selected", "#ffffff")]
         )
 
-        # Frame container para Treeview + Scrollbar
         tree_container = tk.Frame(main_frame, bg=self.bg_main)
         tree_container.pack(fill="both", expand=True)
 
         tree_container.grid_rowconfigure(0, weight=1)
         tree_container.grid_columnconfigure(0, weight=1)
 
-        # Treeview
         self.tree = ttk.Treeview(
             tree_container,
             columns=("Veículo", "Faturamento Bruto", "Despesas", "Lucro", "Data de Início", "Data de Fim", "Descrição"),
@@ -85,17 +83,14 @@ class InterfaceViagem:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=width)
 
-        # Scrollbar vertical
         scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
 
-        # Posicionando Treeview e Scrollbar corretamente
         self.tree.grid(row=0, column=0, sticky="nsew")
         scrollbar.grid(row=0, column=1, sticky="ns")
 
         self.tree.bind("<Double-1>", self.on_double_click)
 
-        # Botões
         button_frame = tk.Frame(main_frame, bg=self.bg_main)
         button_frame.pack(pady=10)
 
@@ -132,7 +127,6 @@ class InterfaceViagem:
             if trip_id is None or not str(trip_id).strip():
                 continue
 
-            # Buscar placa do veículo
             vehicle_id = getattr(trip, 'vehicle_id', None)
             placa = "Desconhecido"
             if vehicle_id:
@@ -140,7 +134,6 @@ class InterfaceViagem:
                 if vehicle and getattr(vehicle, "license_plate", None):
                     placa = vehicle.license_plate
 
-            # Calcular faturamento, despesas e lucro
             passenger_fare = float(getattr(trip, 'passenger_fare', 0.0) or 0)
             passenger_count = int(getattr(trip, 'passenger_count', 0) or 0)
             expenses = float(getattr(trip, 'additional_expenses', 0.0) or 0)
@@ -148,7 +141,6 @@ class InterfaceViagem:
             faturamento_bruto = passenger_fare * passenger_count
             lucro = faturamento_bruto - expenses
 
-            # Datas formatadas
             start_date_display = self.format_date(getattr(trip, 'start_date', ''))
             end_date_display = self.format_date(getattr(trip, 'end_date', ''))
 

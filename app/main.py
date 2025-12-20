@@ -3,19 +3,6 @@ import sqlite3
 import tkinter as tk
 
 from app.database import create_connection
-from app.repositories.route_extra_payment_repository import RouteExtraPaymentRepository
-from app.repositories.vehicle_repository import VehicleRepository
-from app.repositories.driver_repository import DriverRepository
-from app.repositories.route_repository import RouteRepository
-from app.repositories.student_repository import StudentRepository
-from app.repositories.route_student_repository import RouteStudentRepository
-from app.repositories.student_payment_repository import StudentPaymentRepository
-from app.repositories.maintenance_repository import MaintenanceRepository
-from app.repositories.refueling_repository import RefuelingRepository
-from app.repositories.trip_repository import TripRepository
-from app.repositories.trip_driver_repository import TripDriverRepository
-from app.repositories.route_driver_repository import RouteDriverRepository
-from app.repositories.driver_bonus_repository import DriverBonusRepository
 from app.interface.interface_principal import InterfacePrincipal
 
 def initialize_database(db_file, sql_file):

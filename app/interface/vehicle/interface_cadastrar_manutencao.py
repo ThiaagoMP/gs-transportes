@@ -50,9 +50,6 @@ def add_placeholder(entry: ttk.Entry, placeholder: str):
     _show_placeholder()
 
 def get_entry_value(entry: ttk.Entry) -> str:
-    """
-    Retorna o valor do Entry desconsiderando placeholder.
-    """
     text = entry.get().strip()
     if getattr(entry, "_ph_active", False):
         return ""
@@ -212,7 +209,7 @@ class InterfaceAddMaintence:
 
     def open_calendar(self, date_entry):
         def callback(selected_date):
-            date_entry.delete_by_student_id(0, tk.END)
+            date_entry.delete(0, tk.END)
             date_entry.insert(0, selected_date.strftime('%d/%m/%Y'))
         CustomCalendar(self.parent, callback=callback, initial_date=datetime.now().date())
 
@@ -220,7 +217,7 @@ class InterfaceAddMaintence:
         file_path = askopenfilename(filetypes=[("PDF", "*.pdf"), ("JPEG", "*.jpg"), ("PNG", "*.png")])
         if file_path:
             receipt_path_entry.config(state="normal")
-            receipt_path_entry.delete_by_student_id(0, tk.END)
+            receipt_path_entry.delete(0, tk.END)
             receipt_path_entry.insert(0, file_path)
             receipt_path_entry.config(state="readonly")
 

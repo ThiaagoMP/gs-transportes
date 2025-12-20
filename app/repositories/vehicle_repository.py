@@ -32,7 +32,6 @@ class VehicleRepository:
         return None
 
     def get_faturamento_bruto(self, vehicle_id: int):
-        """Retorna o faturamento bruto das rotas ativas do veículo."""
         conn = create_connection(self.db_file)
         if conn:
             try:
@@ -68,7 +67,6 @@ class VehicleRepository:
         return {"total": 0, "ano": 0, "mes": 0}
 
     def get_valor_abastecimentos(self, vehicle_id: int):
-        """Retorna o valor total gasto em abastecimentos (total, ano e mês)."""
         conn = create_connection(self.db_file)
         if conn:
             try:
@@ -91,7 +89,6 @@ class VehicleRepository:
         return {"total": 0, "ano": 0, "mes": 0}
 
     def get_valor_manutencoes(self, vehicle_id: int):
-        """Retorna o valor total gasto em manutenções (total, ano e mês)."""
         conn = create_connection(self.db_file)
         if conn:
             try:
@@ -198,7 +195,6 @@ class VehicleRepository:
             conn.close()
 
     def get_lucro(self, vehicle_id: int):
-        """Calcula o lucro líquido do veículo (total, ano e mês)."""
         conn = create_connection(self.db_file)
         if conn:
             try:

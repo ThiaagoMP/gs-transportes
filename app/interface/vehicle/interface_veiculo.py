@@ -6,9 +6,7 @@ from datetime import datetime
 from app.components.list_rounded_button import ListRoundedButton
 from app.repositories.vehicle_repository import VehicleRepository
 from app.interface.vehicle.interface_cadastrar_veiculo import InterfaceCadastrarVeiculo
-from app.interface.vehicle.interface_cadastrar_abastecimento import InterfaceAddRefueling
 from app.interface.vehicle.interface_editar_veiculo import InterfaceEditarVeiculo
-
 
 class InterfaceListVehicles:
     def __init__(self, parent, db_path):
@@ -60,7 +58,6 @@ class InterfaceListVehicles:
                   background=[("selected", "#333333")],
                   foreground=[("selected", "#ffffff")])
 
-        # Frame para Treeview + Scrollbar vertical
         tree_frame = tk.Frame(list_frame, bg=self.bg_main)
         tree_frame.pack(fill="both", expand=True)
 
@@ -87,7 +84,6 @@ class InterfaceListVehicles:
 
         self.tree.bind("<Double-1>", self.on_double_click)
 
-        # Frame dos botões (centralizados)
         button_frame = tk.Frame(list_frame, bg=self.bg_main)
         button_frame.pack(pady=15)
 

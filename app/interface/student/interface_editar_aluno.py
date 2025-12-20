@@ -168,7 +168,6 @@ class InterfaceEditarAluno:
         else:
             add_placeholder(cpf_entry, "Ex.: 123.456.789-00")
 
-        # Campo de seleção de linhas (rotas) com LabelFrame, Canvas e Scrollbar
         routes_frame = tk.LabelFrame(sub_frame, text="Linhas", font=("Segoe UI", 14), bg=self.bg_main, fg=self.accent)
         routes_frame.grid(row=8, column=0, columnspan=2, padx=15, pady=15, sticky="ew")
 
@@ -182,7 +181,6 @@ class InterfaceEditarAluno:
         canvas_routes.pack(side="left", fill="both", expand=True)
         scrollbar_routes.pack(side="right", fill="y")
 
-        # Adicionar checkboxes para cada rota
         self.route_vars = []
         self.routes = []
         for route in self.route_repo.get_all():
@@ -191,21 +189,20 @@ class InterfaceEditarAluno:
                 scrollable_frame_routes,
                 text=route.name or '',
                 variable=var,
-                bg=self.bg_main,           # fundo principal
+                bg=self.bg_main,
                 activebackground=self.bg_button,
                 fg=self.fg_text,
                 activeforeground=self.fg_text,
-                selectcolor=self.bg_button,  # cor do quadradinho selecionado
+                selectcolor=self.bg_button,
                 font=("Segoe UI", 12),
-                highlightthickness=0,       # remove bordas brancas
-                bd=0,                       # sem borda
-                cursor="hand2"              # cursor de clique
+                highlightthickness=0,
+                bd=0,
+                cursor="hand2"
             )
             chk.pack(anchor="w", padx=10, pady=5)
             self.route_vars.append(var)
             self.routes.append(route.route_id)
 
-        # Marcar checkboxes das rotas associadas ao aluno
         current_routes = [rs.route_id for rs in self.route_student_repo.get_by_student_id(self.student_id)]
         for i, route_id in enumerate(self.routes):
             if route_id in current_routes:
@@ -320,7 +317,6 @@ class InterfaceEditarAluno:
             messagebox.showerror("Erro", "O CPF deve ter exatamente 11 dígitos (ignorando . e -).")
             return
 
-        # Verificar rotas selecionadas
         selected_routes = [self.routes[i] for i, var in enumerate(self.route_vars) if var.get() == 1]
 
         if not selected_routes:
@@ -330,14 +326,12 @@ class InterfaceEditarAluno:
         try:
             student = Student(self.student_id, contact, address, name, extra_info, contract_value, due_day, rg, cpf)
             if self.student_repo.update(student):
-                # Atualizar associações de rotas
                 current_routes = set([rs.route_id for rs in self.route_student_repo.get_by_student_id(self.student_id)])
                 selected_routes_set = set(selected_routes)
                 to_remove = current_routes - selected_routes_set
                 to_add = selected_routes_set - current_routes
 
                 for route_id in to_remove:
-                    # Marcar como removido (end_date = hoje)
                     end_date = datetime.now().strftime('%Y-%m-%d')
                     self.route_student_repo.update_end_date(route_id, self.student_id, end_date)
                 for route_id in to_add:

@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
-from datetime import datetime
 from app.repositories.student_repository import StudentRepository
 from app.repositories.route_repository import RouteRepository
 from app.models.student import Student
@@ -145,7 +144,6 @@ class InterfaceCadastrarAluno:
         cpf_entry.grid(row=7, column=1, sticky="w", padx=(0, 10), pady=10)
         add_placeholder(cpf_entry, "Ex.: 123.456.789-00")
 
-        # Campo de seleção de linhas (rotas) com LabelFrame, Canvas e Scrollbar
         routes_frame = tk.LabelFrame(sub_frame, text="Linhas", font=("Segoe UI", 14), bg=self.bg_main, fg=self.accent)
         routes_frame.grid(row=8, column=0, columnspan=2, padx=15, pady=15, sticky="ew")
 
@@ -160,7 +158,6 @@ class InterfaceCadastrarAluno:
         canvas_routes.pack(side="left", fill="both", expand=True)
         scrollbar_routes.pack(side="right", fill="y")
 
-        # Adicionar checkboxes para cada rota
         self.route_vars = []
         self.routes = []
         for route in self.route_repo.get_all():
@@ -169,15 +166,15 @@ class InterfaceCadastrarAluno:
                 scrollable_frame_routes,
                 text=getattr(route, 'name', ''),
                 variable=var,
-                bg=self.bg_main,  # fundo principal
+                bg=self.bg_main,
                 activebackground=self.bg_button,
                 fg=self.fg_text,
                 activeforeground=self.fg_text,
-                selectcolor=self.bg_button,  # cor do quadradinho selecionado
+                selectcolor=self.bg_button,
                 font=("Segoe UI", 12),
-                highlightthickness=0,  # remove bordas brancas
-                bd=0,  # sem borda
-                cursor="hand2"  # cursor de clique
+                highlightthickness=0,
+                bd=0,
+                cursor="hand2"
             )
             chk.pack(anchor="w", padx=10, pady=5)
             self.route_vars.append(var)
@@ -229,7 +226,7 @@ class InterfaceCadastrarAluno:
         formatted = self.format_rg(digits)
         if formatted != P:
             entry = self.parent.nametowidget(W)
-            entry.delete_by_student_id(0, tk.END)
+            entry.delete(0, tk.END)
             entry.insert(0, formatted)
         return True
 
@@ -242,7 +239,7 @@ class InterfaceCadastrarAluno:
         formatted = self.format_cpf(digits)
         if formatted != P:
             entry = self.parent.nametowidget(W)
-            entry.delete_by_student_id(0, tk.END)
+            entry.delete(0, tk.END)
             entry.insert(0, formatted)
         return True
 
@@ -296,7 +293,6 @@ class InterfaceCadastrarAluno:
             messagebox.showerror("Erro", "O CPF deve ter exatamente 11 dígitos (ignorando . e -).")
             return
 
-        # Verificar rotas selecionadas
         selected_routes = [self.routes[i] for i, var in enumerate(self.route_vars) if var.get() == 1]
 
         if not selected_routes:
@@ -308,7 +304,6 @@ class InterfaceCadastrarAluno:
             student = Student(None, contact, address, name, extra_info, contract_value, due_day, rg, cpf)
             student_id = self.student_repo.add(student)
             if student_id:
-                # Associar rotas selecionadas
                 from app.repositories.route_student_repository import RouteStudentRepository
                 route_student_repo = RouteStudentRepository(self.db_path)
                 for route_id in selected_routes:

@@ -5,7 +5,6 @@ from app.interface.driver.interface_edit_driver import InterfaceEditDriver
 from app.interface.driver.interface_list_bonus import InterfaceBonificacoesMotorista
 from app.repositories.driver_repository import DriverRepository
 from app.repositories.driver_bonus_repository import DriverBonusRepository
-from app.interface.driver.interface_add_driver_bonus import InterfaceAddDriverBonus
 from app.interface.driver.interface_register_driver import InterfaceRegisterDriver
 from app.components.list_rounded_button import ListRoundedButton
 

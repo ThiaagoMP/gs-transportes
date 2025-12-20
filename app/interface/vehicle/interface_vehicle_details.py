@@ -38,7 +38,6 @@ class InterfaceVehicleDetails:
             fg=self.accent
         ).pack(pady=(20, 10))
 
-        # Frame com scrollbar
         container = tk.Frame(self.parent, bg=self.bg_main)
         container.pack(padx=40, pady=10, fill="both", expand=True)
 
@@ -74,7 +73,6 @@ class InterfaceVehicleDetails:
 
         linhas_atuais = self.route_repo.count_routes_by_vehicle(self.vehicle.vehicle_id)
 
-        # Novos cálculos
         valor_abast_total = self.fuel_repo.sum_cost_by_vehicle(self.vehicle.vehicle_id, "total")
         valor_abast_ano = self.fuel_repo.sum_cost_by_vehicle(self.vehicle.vehicle_id, "year")
         valor_abast_mes = self.fuel_repo.sum_cost_by_vehicle(self.vehicle.vehicle_id, "month")

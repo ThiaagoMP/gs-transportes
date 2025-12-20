@@ -4,12 +4,14 @@ from typing import List, Optional
 from app.models.trip import Trip
 from app.database import create_connection
 
+
 class TripRepository:
     def __init__(self, db_file: str):
         self.db_file = db_file
 
     def add(self, trip: Trip) -> Optional[int]:
-        sql = '''INSERT INTO Trip (VehicleID, AdditionalExpenses, TotalKm, PassengerFare, PassengerCount, StartDate, EndDate, Description)
+        sql = '''INSERT INTO Trip (VehicleID, AdditionalExpenses, TotalKm, PassengerFare, PassengerCount, StartDate,
+                                   EndDate, Description)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
         conn = create_connection(self.db_file)
         if conn:
@@ -48,9 +50,9 @@ class TripRepository:
                 conn.close()
         return 0
 
-
     def get_all(self) -> List[Trip]:
-        sql = '''SELECT * FROM Trip'''
+        sql = '''SELECT *
+                 FROM Trip'''
         conn = create_connection(self.db_file)
         if conn:
             try:
@@ -65,7 +67,9 @@ class TripRepository:
         return []
 
     def get_by_id(self, trip_id: int) -> Optional[Trip]:
-        sql = '''SELECT * FROM Trip WHERE TripID = ?'''
+        sql = '''SELECT *
+                 FROM Trip
+                 WHERE TripID = ?'''
         conn = create_connection(self.db_file)
         if conn:
             try:
@@ -80,7 +84,15 @@ class TripRepository:
         return None
 
     def update(self, trip: Trip) -> bool:
-        sql = '''UPDATE Trip SET VehicleID = ?, AdditionalExpenses = ?, TotalKm = ?, PassengerFare = ?, PassengerCount = ?, StartDate = ?, EndDate = ?, Description = ?
+        sql = '''UPDATE Trip
+                 SET VehicleID          = ?,
+                     AdditionalExpenses = ?,
+                     TotalKm            = ?,
+                     PassengerFare      = ?,
+                     PassengerCount     = ?,
+                     StartDate          = ?,
+                     EndDate            = ?,
+                     Description        = ?
                  WHERE TripID = ?'''
         conn = create_connection(self.db_file)
         if conn:
@@ -96,7 +108,9 @@ class TripRepository:
         return False
 
     def delete(self, trip_id: int) -> bool:
-        sql = '''DELETE FROM Trip WHERE TripID = ?'''
+        sql = '''DELETE
+                 FROM Trip
+                 WHERE TripID = ?'''
         conn = create_connection(self.db_file)
         if conn:
             try:

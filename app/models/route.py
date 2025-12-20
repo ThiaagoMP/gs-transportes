@@ -38,9 +38,10 @@ class Route:
             route_id=row[0],
             vehicle_id=row[1],
             avg_km=row[2],
-            period=row[3],
-            avg_time_minutes=row[4],
-            name=row[5],
-            active=bool(row[6]),
-            contract_value=row[7]
+            contract_value=row[3],
+            period=row[4],
+            avg_time_minutes=row[5],
+            name=row[6],
+            active=bool(row[7]),
+
         )

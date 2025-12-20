@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 from app.components.list_rounded_button import ListRoundedButton
 from app.repositories.route_repository import RouteRepository
 from app.repositories.vehicle_repository import VehicleRepository

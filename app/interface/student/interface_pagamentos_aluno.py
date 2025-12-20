@@ -36,7 +36,6 @@ class InterfacePagamentosAluno:
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
         main_frame.pack(padx=30, pady=10, fill="both", expand=True)
 
-        # Container Treeview + Scrollbar
         tree_container = tk.Frame(main_frame, bg=self.bg_main)
         tree_container.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -55,7 +54,6 @@ class InterfacePagamentosAluno:
                   background=[("selected", "#333333")],
                   foreground=[("selected", "#ffffff")])
 
-        # Treeview
         self.tree = ttk.Treeview(
             tree_container,
             columns=("Data", "Valor", "Info Extra"),
@@ -73,15 +71,12 @@ class InterfacePagamentosAluno:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=width, stretch=stretch)
 
-        # Scrollbar vertical
         scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
         scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=scrollbar.set)
 
-        # Treeview preenchendo o espaço restante
         self.tree.pack(side="left", fill="both", expand=True)
 
-        # Botões
         button_frame = tk.Frame(main_frame, bg=self.bg_main)
         button_frame.pack(pady=10)
 

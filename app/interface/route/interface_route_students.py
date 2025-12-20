@@ -6,12 +6,9 @@ from app.components.list_rounded_button import ListRoundedButton
 from app.interface.route.interface_manage_route_students import InterfaceGerenciarAlunosLinha
 from app.interface.student.interface_pagamentos_aluno import InterfacePagamentosAluno
 from app.repositories.route_student_repository import RouteStudentRepository
-from app.repositories.student_payment_repository import StudentPaymentRepository
 from app.repositories.student_repository import StudentRepository
 from app.interface.student.interface_cadastrar_aluno import InterfaceCadastrarAluno
 from app.interface.student.interface_editar_aluno import InterfaceEditarAluno
-from app.interface.student.interface_adicionar_linha import InterfaceAdicionarNaLinha
-
 
 class InterfaceRouteStudents:
     def __init__(self, parent, db_path, route_id, route_name):
@@ -45,7 +42,6 @@ class InterfaceRouteStudents:
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
         main_frame.pack(padx=30, pady=10, fill="both", expand=True)
 
-        # Container Treeview + Scrollbar
         tree_container = tk.Frame(main_frame, bg=self.bg_main)
         tree_container.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -85,7 +81,6 @@ class InterfaceRouteStudents:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=width)
 
-        # Scrollbar vertical
         scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
         scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=scrollbar.set)

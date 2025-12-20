@@ -7,8 +7,6 @@ from app.repositories.route_repository import RouteRepository
 from app.repositories.vehicle_repository import VehicleRepository
 from app.interface.route.interface_cadastrar_linha import InterfaceCadastrarLinha
 from app.interface.route.interface_editar_linha import InterfaceEditarLinha
-from app.interface.route.interface_adicionar_pagamento_extra import InterfaceAddExtraPayment
-from app.interface.route.interface_adicionar_despesa_extra import InterfaceAddExpensePayment
 from app.components.list_rounded_button import ListRoundedButton
 
 
@@ -61,7 +59,6 @@ class InterfaceLinha:
                   background=[("selected", "#333333")],
                   foreground=[("selected", "#ffffff")])
 
-        # Frame container do Treeview + Scrollbar
         tree_container = tk.Frame(list_frame, bg=self.bg_main)
         tree_container.pack(fill="both", expand=True)
 
@@ -105,7 +102,7 @@ class InterfaceLinha:
             ("Pagamentos Extras", self.adicionar_pagamento_extra),
             ("Despesas Extras", self.adicionar_despesa_extra),
             ("Alunos", self.abrir_alunos),
-            ("Detalhes", self.abrir_detalhes),  # <-- novo botão
+            ("Detalhes", self.abrir_detalhes),
             ("Excluir Linha", self.confirm_delete)
         ]
 

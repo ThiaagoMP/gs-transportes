@@ -144,7 +144,6 @@ class InterfaceCadastrarLinha:
         name_entry.grid(row=4, column=1, padx=5, pady=5, sticky="w")
         add_placeholder(name_entry, "Ex.: Linha Centro")
 
-        # 🔹 NOVO CAMPO: Valor do Contrato (R$)
         ttk.Label(fields_frame, text="Valor do Contrato (R$)*:").grid(row=5, column=0, sticky="e", padx=5, pady=5)
         contract_value_entry = ttk.Entry(fields_frame, width=25, validate="key", validatecommand=(self.parent.register(self.validate_decimal), "%P"))
         contract_value_entry.grid(row=5, column=1, padx=5, pady=5, sticky="w")
@@ -164,9 +163,6 @@ class InterfaceCadastrarLinha:
             ),
             bg=self.bg_button, fg=self.fg_text, font=self.font_button
         ).grid(row=0, column=7, sticky="e", padx=20, pady=5)
-
-        # Restante do código (motoristas/alunos) continua igual...
-        # 🔽🔽🔽
 
         drivers_students_frame = tk.Frame(sub_frame, bg=self.bg_main)
         drivers_students_frame.pack(fill="x", padx=10, pady=5)

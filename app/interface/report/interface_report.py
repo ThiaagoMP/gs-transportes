@@ -3,11 +3,11 @@ from tkinter import ttk, messagebox, filedialog
 from datetime import datetime, timedelta
 from collections import defaultdict
 import os
-import numpy as np
 
 from app.components.list_rounded_button import ListRoundedButton
 from app.components.custom_calendar import CustomCalendar
-from app.interface.report.report_graphics import ReportGraphics
+from app.interface.report.generate_graphics import ReportGraphics
+from app.interface.report.get_graphics import GetGraphics
 
 from app.repositories.report_repository import (
     get_maintenances, get_refuelings, get_driver_bonuses,
@@ -38,11 +38,6 @@ except Exception:
 
 
 class InterfaceRelatorio:
-    """
-    Nova interface de Relatórios — filtro apenas por data.
-    Usa funções do repo (report_repository) para obter dados.
-    Renderiza tabela, resumo e dashboard de gráficos em abas.
-    """
 
     def __init__(self, parent, db_path):
         self.parent = parent
@@ -61,6 +56,7 @@ class InterfaceRelatorio:
         self.totals = {"in": 0.0, "out": 0.0}
 
         self.graphics = ReportGraphics(theme="dark")
+        self.figs_generator = GetGraphics(self.graphics)
 
     def show(self):
         for w in self.parent.winfo_children():
@@ -97,9 +93,6 @@ class InterfaceRelatorio:
         ListRoundedButton(btns, text="Gerar Relatório", command=self.generate_report,
                           bg=self.bg_button, fg=self.fg_text, hover_bg=self.accent,
                           width=180, height=44, font=self.font_button).grid(row=0, column=0, padx=6)
-        ListRoundedButton(btns, text="Exportar PDF (Tabela)", command=self._export_all_pdf,
-                          bg=self.bg_button, fg=self.fg_text, hover_bg=self.accent,
-                          width=160, height=44, font=self.font_button).grid(row=0, column=1, padx=6)
         ListRoundedButton(btns, text="Abrir Dashboard (Gráficos)", command=self.open_dashboard_tabs,
                           bg=self.bg_button, fg=self.fg_text, hover_bg=self.accent,
                           width=200, height=44, font=self.font_button).grid(row=0, column=2, padx=6)
@@ -121,7 +114,6 @@ class InterfaceRelatorio:
             return datetime.now().strftime("%Y-%m-%d")
 
     def _to_month_key(self, date_s: str) -> str:
-        """Converte 'YYYY-MM-DD' para 'YYYY-MM'"""
         try:
             return date_s[:7]
         except Exception:
@@ -166,7 +158,7 @@ class InterfaceRelatorio:
         except Exception:
             pass
 
-        cols = ("Data", "Categoria", "Placa/Rota", "Descrição", "Valor (R$)")
+        cols = ("Data", "Categoria", "Identificador", "Descrição", "Valor (R$)")
         tree = ttk.Treeview(self.result_frame, columns=cols, show="headings", height=16)
 
         style = ttk.Style()
@@ -217,17 +209,10 @@ class InterfaceRelatorio:
         start = self._to_sql_date(self.start_var.get())
         end = self._to_sql_date(self.end_var.get())
 
-        # =========================================================================
-        # 1. Obter Mapeamentos
-        # =========================================================================
         try:
             veiculos_map = get_vehicle_plate_map(self.db_path)
         except Exception:
             veiculos_map = {}
-
-        # =========================================================================
-        # 2. Construir Agregações
-        # =========================================================================
 
         lucro_por_veiculo = defaultdict(float)
         gastos_por_veiculo = defaultdict(float)
@@ -238,14 +223,12 @@ class InterfaceRelatorio:
         for date_s, cat, plate, desc, val, extra in self.report_rows:
             month_key = self._to_month_key(date_s)
 
-            # timeline
             if val >= 0:
                 timeline_monthly[month_key]["in"] += val
             else:
                 timeline_monthly[month_key]["out"] += -val
             timeline_monthly[month_key]["net"] += val
 
-            # lucro e gastos por veículo
             if plate and plate in veiculos_map:
                 vehicle_name = veiculos_map[plate]
                 lucro_por_veiculo[vehicle_name] += val
@@ -253,17 +236,14 @@ class InterfaceRelatorio:
                 if val < 0 and cat in ["Manutenção", "Abastecimento"]:
                     gastos_por_veiculo[vehicle_name] += -val
 
-            # recebimentos por aluno
             if cat and "pagamento aluno" in cat.lower():
                 aluno = (desc or "").strip()
                 if aluno:
                     recebimentos_por_aluno[aluno] += val
 
-            # despesas por categoria
             if val < 0:
                 despesa_por_categoria[cat or "Outro"] += -val
 
-        # Dicionários Agregados para Plotagem Mensal (Chamando funções do repositório)
         try:
             rec_mensal = get_all_receipts_monthly(self.db_path, start, end)
             pagamentos_alunos_mes = rec_mensal.get("student_payments", {})
@@ -271,7 +251,6 @@ class InterfaceRelatorio:
 
             despesas_por_mes = get_all_expenses_monthly(self.db_path, start, end)
 
-            # Reutiliza o lucro calculado internamente
             lucros_por_mes = {k: v["net"] for k, v in timeline_monthly.items()}
 
             receita_por_linha = get_route_receipts(self.db_path, start, end)
@@ -280,75 +259,18 @@ class InterfaceRelatorio:
             messagebox.showerror("Erro de Repositório", f"Falha ao obter dados mensais/rota: {e}")
             return
 
-        # =========================================================================
-        # 3. Preparar lista de matplotlib.Figure usando ReportGraphics
-        # =========================================================================
-        figs = []
+        figs, descriptions = self.figs_generator.get_figs(
+            despesa_por_categoria,
+            despesas_por_mes,
+            extras_linha_mes,
+            gastos_por_veiculo,
+            lucro_por_veiculo,
+            lucros_por_mes,
+            pagamentos_alunos_mes,
+            recebimentos_por_aluno,
+            receita_por_linha
+        )
 
-        # 1) NOVO: Fluxo Financeiro Mensal (Barras Agrupadas) - Substitui os 3 gráficos antigos
-        try:
-            fig_fluxo = self.graphics.bar_financial_flow_monthly(
-                pagamentos_alunos_mes,
-                extras_linha_mes,
-                despesas_por_mes,
-                lucros_por_mes
-            )
-            if fig_fluxo is not None:
-                figs.append(fig_fluxo)
-        except Exception as e:
-            # print(f"Erro ao gerar gráfico de fluxo mensal: {e}")
-            pass
-
-        # 2) Lucro por veículo (Barra)
-        if lucro_por_veiculo:
-            vnames = list(lucro_por_veiculo.keys())
-            vvals = [lucro_por_veiculo[k] for k in vnames]
-            try:
-                figs.append(self.graphics.bar_lucro_por_veiculo(vnames, vvals))
-            except Exception:
-                pass
-
-        # 3) Gastos por Veículo (Pizza)
-        if gastos_por_veiculo:
-            try:
-                figs.append(self.graphics.pie_gastos_por_veiculo(gastos_por_veiculo))
-            except Exception:
-                pass
-
-        # 4) Lucro por Veículo (Pizza)
-        if lucro_por_veiculo:
-            try:
-                figs.append(self.graphics.pie_lucro_por_veiculo(lucro_por_veiculo))
-            except Exception:
-                pass
-
-        # 5) Receita por Rota Pie Chart
-        if receita_por_linha:
-            try:
-                figs.append(self.graphics.plot_revenue_by_route_pie(receita_por_linha))
-            except Exception:
-                pass
-
-        # 6) Recebimentos por aluno (top 20)
-        if recebimentos_por_aluno:
-            top_students = sorted(recebimentos_por_aluno.items(), key=lambda x: x[1], reverse=True)[:20]
-            alunos = [a for a, _ in top_students]
-            avals = [v for _, v in top_students]
-            try:
-                figs.append(self.graphics.bar_recebimentos_por_aluno(alunos, avals))
-            except Exception:
-                pass
-
-        # 7) Despesas por Categoria Pie Chart (Se o ReportGraphics tiver o método)
-        if despesa_por_categoria and hasattr(self.graphics, "pie_despesas_por_categoria"):
-            try:
-                figs.append(self.graphics.pie_despesas_por_categoria(despesa_por_categoria))
-            except Exception:
-                pass
-
-        # =========================================================================
-        # 4. Construir janela com abas (Resto do código mantido)
-        # =========================================================================
         win = tk.Toplevel(self.parent)
         win.title("Dashboard de Gráficos")
         win.configure(bg=self.bg_main)
@@ -359,23 +281,25 @@ class InterfaceRelatorio:
         tk.Button(top_bar, text="Salvar todos PNG", bg=self.bg_button, fg=self.fg_text,
                   command=lambda: self._save_all_png(figs)).pack(side="right", padx=6)
         tk.Button(top_bar, text="Exportar todos para PDF", bg=self.bg_button, fg=self.fg_text,
-                  command=lambda: self._export_all_pdf(figs)).pack(side="right", padx=6)
+                  command=lambda: self._export_all_pdf(figs, descriptions)).pack(side="right", padx=6)
 
         style = ttk.Style()
-        style.theme_create("dark_notebook", parent="alt", settings={
-            "TNotebook": {"configure": {"background": self.bg_main, "bordercolor": self.bg_button}},
-            "TNotebook.Tab": {
-                "configure": {"background": self.bg_button, "foreground": self.fg_text, "padding": [10, 5],
-                              "font": self.font_button},
-                "map": {"background": [("selected", self.accent)],
-                        "foreground": [("selected", self.bg_main)]}}
-        })
+
+        if "dark_notebook" not in style.theme_names():
+            style.theme_create("dark_notebook", parent="alt", settings={
+                "TNotebook": {"configure": {"background": self.bg_main, "bordercolor": self.bg_button}},
+                "TNotebook.Tab": {
+                    "configure": {"background": self.bg_button, "foreground": self.fg_text, "padding": [10, 5],
+                                  "font": self.font_button},
+                    "map": {"background": [("selected", self.accent)],
+                            "foreground": [("selected", self.bg_main)]}}
+            })
+
         style.theme_use("dark_notebook")
 
         notebook = ttk.Notebook(win)
         notebook.pack(fill="both", expand=True, padx=8, pady=8)
 
-        # Adiciona uma aba para cada figura
         for i, fig in enumerate(figs):
             frame = tk.Frame(notebook, bg=self.bg_main)
             notebook.add(frame, text=f"Gráfico {i + 1}")
@@ -402,40 +326,125 @@ class InterfaceRelatorio:
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao salvar PNGs: {e}")
 
-    def _export_all_pdf(self, figs):
+    def _export_all_pdf(self, figs, descriptions):
         if not REPORTLAB_AVAILABLE:
-            messagebox.showwarning("Biblioteca ausente",
-                                   "Instale reportlab (`pip install reportlab`) para exportar PDF.")
+            messagebox.showwarning(
+                "Biblioteca ausente",
+                "Instale reportlab (`pip install reportlab`) para exportar PDF."
+            )
             return
+
         if not figs:
             messagebox.showinfo("Sem gráficos", "Não há gráficos para exportar.")
             return
-        fpath = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF files", "*.pdf")])
+
+        fpath = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF files", "*.pdf")]
+        )
         if not fpath:
             return
+
         try:
+            from reportlab.lib.pagesizes import A4
             from reportlab.lib.utils import ImageReader
+            from reportlab.platypus import Paragraph
+            from reportlab.lib.styles import getSampleStyleSheet
+
             c = pdfcanvas.Canvas(fpath, pagesize=A4)
             width, height = A4
+
+            styles = getSampleStyleSheet()
+
             tmp_files = []
-            for fig in figs:
+
+            c.setFont("Helvetica-Bold", 18)
+            c.drawCentredString(width / 2, height - 100, "Relatório Financeiro")
+
+            c.setFont("Helvetica", 11)
+            c.drawCentredString(
+                width / 2,
+                height - 130,
+                f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+            )
+
+            c.line(80, height - 145, width - 80, height - 145)
+
+            intro_text = (
+                "Este relatório apresenta gráficos e análises financeiras geradas "
+                "automaticamente pelo sistema. O objetivo é auxiliar na tomada de "
+                "decisões, oferecendo uma visão clara do desempenho financeiro, "
+                "custos operacionais, consumo e lucratividade."
+            )
+
+            intro_style = styles["Normal"]
+            intro_style.fontName = "Helvetica"
+            intro_style.fontSize = 11
+            intro_style.leading = 14
+
+            intro_paragraph = Paragraph(intro_text, intro_style)
+
+            max_width = width - 160
+            p_width, p_height = intro_paragraph.wrap(max_width, height)
+
+            intro_paragraph.drawOn(
+                c,
+                80,
+                height - 165 - p_height
+            )
+
+            c.showPage()
+
+            for fig, desc in zip(figs, descriptions):
                 tmp = f"_tmp_{datetime.now().timestamp()}.png"
-                fig.savefig(tmp, bbox_inches='tight', dpi=150)
+                fig.savefig(tmp, bbox_inches="tight", dpi=150)
                 tmp_files.append(tmp)
-                try:
-                    img = ImageReader(tmp)
-                    img_width, img_height = A4[0] - 80, A4[1] - 240
-                    c.drawImage(img, 40, 120, width=img_width, height=img_height, preserveAspectRatio=True)
-                    c.showPage()
-                except Exception as img_err:
-                    c.showPage()
+
+                c.setFont("Helvetica-Bold", 12)
+                c.drawString(40, height - 60, "Descrição do gráfico")
+
+                desc_style = styles["Normal"]
+                desc_style.fontName = "Helvetica"
+                desc_style.fontSize = 10
+                desc_style.leading = 13
+
+                desc_paragraph = Paragraph(desc, desc_style)
+
+                desc_width = width - 80
+                d_width, d_height = desc_paragraph.wrap(desc_width, height)
+
+                desc_paragraph.drawOn(
+                    c,
+                    40,
+                    height - 80 - d_height
+                )
+
+                img = ImageReader(tmp)
+
+                img_width = width - 80
+                img_height = height - 200 - d_height
+
+                c.drawImage(
+                    img,
+                    40,
+                    60,
+                    width=img_width,
+                    height=img_height,
+                    preserveAspectRatio=True
+                )
+
+                c.showPage()
 
             c.save()
+
             for t in tmp_files:
                 try:
                     os.remove(t)
                 except Exception:
                     pass
+
             messagebox.showinfo("OK", f"PDF salvo em {fpath}")
+
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao exportar PDF: {e}")
+

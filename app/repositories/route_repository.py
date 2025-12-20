@@ -13,6 +13,7 @@ class RouteRepository:
         conn = create_connection(self.db_file)
         if conn:
             try:
+
                 cursor = conn.cursor()
                 cursor.execute(sql, route.to_tuple())
                 conn.commit()

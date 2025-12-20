@@ -118,11 +118,9 @@ class InterfaceEditarLinha:
             bg=self.bg_button, fg=self.fg_text, font=self.font_button
         ).grid(row=0, column=7, sticky="e", padx=20, pady=5)
 
-        # Motoristas e alunos (sem mudanças)
         drivers_students_frame = tk.Frame(sub_frame, bg=self.bg_main)
         drivers_students_frame.pack(fill="x", padx=10, pady=5)
 
-        # === MOTORISTAS ===
         drivers_frame = tk.LabelFrame(drivers_students_frame, text="Motoristas", font=self.font_label, bg=self.bg_main, fg=self.fg_text)
         drivers_frame.pack(side="left", fill="both", expand=True, padx=5, pady=5)
 
@@ -150,7 +148,6 @@ class InterfaceEditarLinha:
                                      activebackground=self.bg_button, selectcolor=self.bg_button, wraplength=180)
                 chk.grid(row=i, column=0, padx=5, pady=2, sticky="w")
 
-        # === ALUNOS ===
         students_frame = tk.LabelFrame(drivers_students_frame, text="Alunos", font=self.font_label, bg=self.bg_main, fg=self.fg_text)
         students_frame.pack(side="left", fill="both", expand=True, padx=5, pady=5)
 

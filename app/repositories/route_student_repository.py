@@ -1,9 +1,7 @@
-from datetime import datetime
 import sqlite3
 from typing import List
 from app.models.route_student import RouteStudent
 from app.database import create_connection
-
 
 class RouteStudentRepository:
     def __init__(self, db_file: str):

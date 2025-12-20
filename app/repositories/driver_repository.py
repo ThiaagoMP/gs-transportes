@@ -44,7 +44,6 @@ class DriverRepository:
         return result[0] if result and result[0] is not None else 0.0
 
     def populate_random_drivers(self, qtd: int = 200):
-        """Popula o banco com motoristas aleatórios para testes."""
         first_names = ["Carlos", "Maria", "João", "Ana", "Lucas", "Fernanda", "Pedro", "Juliana", "Ricardo", "Larissa"]
         last_names = ["Silva", "Souza", "Pereira", "Costa", "Oliveira", "Rodrigues", "Almeida", "Lima", "Gomes",
                       "Barbosa"]
@@ -81,6 +80,8 @@ class DriverRepository:
             self.create(driver)
 
         print(f"{qtd} motoristas inseridos com sucesso!")
+
+
 
     def get_all(self) -> List[Driver]:
         sql = '''SELECT *

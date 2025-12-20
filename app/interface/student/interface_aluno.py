@@ -9,8 +9,6 @@ from app.repositories.student_repository import StudentRepository
 from app.interface.student.interface_cadastrar_aluno import InterfaceCadastrarAluno
 from app.interface.student.interface_editar_aluno import InterfaceEditarAluno
 from app.interface.student.interface_adicionar_linha import InterfaceAdicionarNaLinha
-from app.interface.student.interface_cadastrar_pagamento import InterfaceCadastrarPagamento
-
 
 class InterfaceAluno:
     def __init__(self, parent, db_path):
@@ -59,7 +57,6 @@ class InterfaceAluno:
                   background=[("selected", "#333333")],
                   foreground=[("selected", "#ffffff")])
 
-        # Frame principal do Treeview + Scrollbar
         tree_container = tk.Frame(list_frame, bg=self.bg_main)
         tree_container.pack(fill="both", expand=True)
 
@@ -87,11 +84,9 @@ class InterfaceAluno:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=width)
 
-        # Scrollbar vertical do tamanho exato do tree_container
         scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
 
-        # Posicionamento com grid
         self.tree.grid(row=0, column=0, sticky="nsew")
         scrollbar.grid(row=0, column=1, sticky="ns")
 
@@ -129,7 +124,6 @@ class InterfaceAluno:
         self.tree.delete(*self.tree.get_children())
         students = self.student_repo.get_all()
 
-        # ✅ Ordenar alfabeticamente por nome
         students.sort(key=lambda s: getattr(s, 'name', '').lower() if getattr(s, 'name', '') else '')
 
         for student in students:

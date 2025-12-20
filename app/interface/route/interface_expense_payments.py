@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
-import os
 
 from app.components.list_rounded_button import ListRoundedButton
 from app.interface.route.interface_adicionar_despesa_extra import InterfaceAddExpensePayment
@@ -39,7 +38,6 @@ class InterfaceRouteExpensePayments:
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
         main_frame.pack(padx=30, pady=10, fill="both", expand=True)
 
-        # Container Treeview + Scrollbar
         tree_container = tk.Frame(main_frame, bg=self.bg_main)
         tree_container.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -58,7 +56,6 @@ class InterfaceRouteExpensePayments:
                   background=[("selected", "#333333")],
                   foreground=[("selected", "#ffffff")])
 
-        # Treeview
         self.tree = ttk.Treeview(
             tree_container,
             columns=("Data", "Valor", "Descrição"),
@@ -76,15 +73,12 @@ class InterfaceRouteExpensePayments:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=width, stretch=stretch)
 
-        # Scrollbar vertical
         scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
         scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=scrollbar.set)
 
-        # Treeview preenchendo espaço restante
         self.tree.pack(side="left", fill="both", expand=True)
 
-        # Botões
         button_frame = tk.Frame(main_frame, bg=self.bg_main)
         button_frame.pack(pady=10)
 
