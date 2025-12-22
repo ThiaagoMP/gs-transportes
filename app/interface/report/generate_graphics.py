@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.ticker import StrMethodFormatter
-from typing import Sequence
+from typing import Sequence, Dict, Optional
+import numpy as np
 
 
 class ReportGraphics:
@@ -45,13 +46,9 @@ class ReportGraphics:
         for spine in ax.spines.values():
             spine.set_edgecolor(self.text_color)
 
-    def bar_monthly_profit(self, lucros_por_mes: dict[str, float]):
+    def bar_monthly_profit(self, lucros_por_mes: Dict[str, float]) -> Optional[Figure]:
         if not lucros_por_mes:
-            print("Nenhum lucro recebido.")
             return None
-
-        import numpy as np
-        import matplotlib.pyplot as plt
 
         meses = []
         profits = []
@@ -61,9 +58,8 @@ class ReportGraphics:
                 v = float(valor)
                 if np.isnan(v):
                     v = 0
-            except:
+            except Exception:
                 v = 0
-
             meses.append(mes)
             profits.append(v)
 
@@ -78,22 +74,15 @@ class ReportGraphics:
             ax.set_facecolor(self.bg_figure)
 
             ax.bar([0], [profits[0]], width=0.25, color=cores)
-
             ax.set_xticks([0])
             ax.set_xticklabels([meses[0]], color=self.text_color)
             ax.set_xlim(-0.7, 0.7)
-
             ax.axhline(0, color=self.text_color, linewidth=1.6)
 
-            ax.set_title(f"Lucro — {meses[0]}", color=self.text_color)
+            ax.set_title("Lucro — {}".format(meses[0]), color=self.text_color)
             ax.set_ylabel("Lucro (R$)", color=self.text_color)
-
             self._apply_currency_formatter(ax, decimal_places=2)
-            ax.tick_params(colors=self.text_color)
-
-            for spine in ax.spines.values():
-                spine.set_edgecolor(self.text_color)
-
+            self._style_axis(ax)
             plt.tight_layout()
             return fig
 
@@ -104,18 +93,10 @@ class ReportGraphics:
         ax.set_facecolor(self.bg_figure)
 
         x = np.arange(n)
-        bar_width = 0.35
-
-        ax.bar(x, profits, width=bar_width, color=cores, edgecolor="black", linewidth=0.6)
+        ax.bar(x, profits, width=0.35, color=cores, edgecolor="black", linewidth=0.6)
 
         ax.set_xticks(x)
-        ax.set_xticklabels(
-            meses,
-            rotation=45,
-            ha="right",
-            color=self.text_color
-        )
-
+        ax.set_xticklabels(meses, rotation=45, ha="right", color=self.text_color)
         ax.axhline(0, color=self.text_color, linewidth=1.8)
 
         ax.set_title("Lucro Mensal", color=self.text_color)
@@ -123,17 +104,13 @@ class ReportGraphics:
         ax.set_xlabel("Mês", color=self.text_color)
 
         self._apply_currency_formatter(ax, decimal_places=2)
-
-        ax.tick_params(colors=self.text_color)
-        for spine in ax.spines.values():
-            spine.set_edgecolor(self.text_color)
-
+        self._style_axis(ax)
         ax.grid(axis="y", linestyle="--", alpha=0.35)
 
         plt.tight_layout()
         return fig
 
-    def plot_revenue_by_route_pie(self, receita_por_linha: dict[str, float]) -> Figure | None:
+    def plot_revenue_by_route_pie(self, receita_por_linha: Dict[str, float]) -> Optional[Figure]:
         if not receita_por_linha:
             return None
 
@@ -162,67 +139,67 @@ class ReportGraphics:
         fig.tight_layout()
         return fig
 
-    def bar_consumo_combustivel(self, veiculos: Sequence[str], km_por_litro: Sequence[float]) -> Figure | None:
+    def bar_consumo_combustivel(
+        self,
+        veiculos: Sequence[str],
+        km_por_litro: Sequence[float]
+    ) -> Optional[Figure]:
         if not veiculos or not km_por_litro:
             return None
 
-        if len(veiculos) == 1:
-            fig, ax = plt.subplots(figsize=(4, 4))
-            width = 0.35
-        else:
-            fig, ax = plt.subplots(figsize=(8, 5))
-            width = 0.6 if len(veiculos) < 6 else 0.45
+        fig, ax = plt.subplots(figsize=(4, 4) if len(veiculos) == 1 else (8, 5))
+        width = 0.35 if len(veiculos) == 1 else (0.6 if len(veiculos) < 6 else 0.45)
 
         fig.patch.set_facecolor(self.bg_figure)
         ax.set_facecolor(self.bg_figure)
-        ax.bar(veiculos, km_por_litro, width=width, color=self.color_primary)
 
+        ax.bar(veiculos, km_por_litro, width=width, color=self.color_primary)
         ax.set_title("Consumo de Combustível (Km/L por Veículo)", color=self.text_color)
         ax.set_ylabel("Km/L", color=self.text_color)
         ax.set_xlabel("Veículos", color=self.text_color)
 
-        ax.tick_params(axis='x', rotation=45 if len(veiculos) > 3 else 0, colors=self.text_color)
-        ax.tick_params(axis='y', colors=self.text_color)
+        ax.tick_params(axis="x", rotation=45 if len(veiculos) > 3 else 0, colors=self.text_color)
+        ax.tick_params(axis="y", colors=self.text_color)
         self._style_axis(ax)
+
         plt.tight_layout()
         return fig
 
-    def bar_custo_por_km(self, veiculos: Sequence[str], custo_por_km: Sequence[float]) -> Figure | None:
+    def bar_custo_por_km(
+        self,
+        veiculos: Sequence[str],
+        custo_por_km: Sequence[float]
+    ) -> Optional[Figure]:
         if not veiculos or not custo_por_km:
             return None
 
-        if len(veiculos) == 1:
-            fig, ax = plt.subplots(figsize=(4, 4))
-            width = 0.35
-        else:
-            fig, ax = plt.subplots(figsize=(8, 5))
-            width = 0.6 if len(veiculos) < 6 else 0.45
+        fig, ax = plt.subplots(figsize=(4, 4) if len(veiculos) == 1 else (8, 5))
+        width = 0.35 if len(veiculos) == 1 else (0.6 if len(veiculos) < 6 else 0.45)
 
         fig.patch.set_facecolor(self.bg_figure)
         ax.set_facecolor(self.bg_figure)
-        ax.bar(veiculos, custo_por_km, width=width, color=self.color_danger)
 
-        ax.set_title("Custo Total por KM (Combustível + Manutenção)", color=self.text_color)
+        ax.bar(veiculos, custo_por_km, width=width, color=self.color_danger)
+        ax.set_title("Custo Total por KM", color=self.text_color)
         ax.set_ylabel("R$ por KM", color=self.text_color)
         ax.set_xlabel("Veículos", color=self.text_color)
-        ax.tick_params(axis='x', rotation=45 if len(veiculos) > 3 else 0, colors=self.text_color)
-        ax.tick_params(axis='y', colors=self.text_color)
 
         ax.yaxis.set_major_formatter(StrMethodFormatter("R$ {x:,.2f}"))
         self._style_axis(ax)
+
         plt.tight_layout()
         return fig
 
-    def bar_lucro_por_veiculo(self, vehicle_names: Sequence[str], valores: Sequence[float]) -> Figure | None:
+    def bar_lucro_por_veiculo(
+        self,
+        vehicle_names: Sequence[str],
+        valores: Sequence[float]
+    ) -> Optional[Figure]:
         if not vehicle_names or not valores:
             return None
 
-        if len(vehicle_names) == 1:
-            fig, ax = plt.subplots(figsize=(5, 4))
-            width = 0.4
-        else:
-            fig, ax = plt.subplots(figsize=(10, 5))
-            width = 0.6 if len(vehicle_names) < 8 else 0.45
+        fig, ax = plt.subplots(figsize=(5, 4) if len(vehicle_names) == 1 else (10, 5))
+        width = 0.4 if len(vehicle_names) == 1 else (0.6 if len(vehicle_names) < 8 else 0.45)
 
         fig.patch.set_facecolor(self.bg_figure)
         ax.set_facecolor(self.bg_figure)
@@ -234,23 +211,22 @@ class ReportGraphics:
         ax.set_xlabel("Veículo", color=self.text_color)
         ax.set_ylabel("Lucro (R$)", color=self.text_color)
 
-        ax.tick_params(axis='x', rotation=45 if len(vehicle_names) > 5 else 0, colors=self.text_color)
-        ax.tick_params(axis='y', colors=self.text_color)
         self._apply_currency_formatter(ax, decimal_places=2)
         self._style_axis(ax)
+
         plt.tight_layout()
         return fig
 
-    def bar_lucro_por_motorista(self, motoristas: Sequence[str], lucro: Sequence[float]) -> Figure | None:
+    def bar_lucro_por_motorista(
+        self,
+        motoristas: Sequence[str],
+        lucro: Sequence[float]
+    ) -> Optional[Figure]:
         if not motoristas or not lucro:
             return None
 
-        if len(motoristas) == 1:
-            fig, ax = plt.subplots(figsize=(5, 4))
-            width = 0.4
-        else:
-            fig, ax = plt.subplots(figsize=(9, 5))
-            width = 0.6 if len(motoristas) < 8 else 0.45
+        fig, ax = plt.subplots(figsize=(5, 4) if len(motoristas) == 1 else (9, 5))
+        width = 0.4 if len(motoristas) == 1 else (0.6 if len(motoristas) < 8 else 0.45)
 
         fig.patch.set_facecolor(self.bg_figure)
         ax.set_facecolor(self.bg_figure)
@@ -262,14 +238,16 @@ class ReportGraphics:
         ax.set_ylabel("R$", color=self.text_color)
         ax.set_xlabel("Motoristas", color=self.text_color)
 
-        ax.tick_params(axis='x', rotation=45 if len(motoristas) > 5 else 0, colors=self.text_color)
-        ax.tick_params(axis='y', colors=self.text_color)
         self._apply_currency_formatter(ax, decimal_places=2)
         self._style_axis(ax)
+
         plt.tight_layout()
         return fig
 
-    def pie_lucro_por_veiculo(self, lucro_por_veiculo: dict[str, float]) -> Figure | None:
+    def pie_lucro_por_veiculo(
+        self,
+        lucro_por_veiculo: Dict[str, float]
+    ) -> Optional[Figure]:
         if not lucro_por_veiculo:
             return None
 

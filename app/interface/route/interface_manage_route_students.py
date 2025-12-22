@@ -19,20 +19,18 @@ class InterfaceGerenciarAlunosLinha:
 
         self.bg_main = "#1c1c1e"
         self.bg_button = "#3a3f47"
+        self.bg_card = "#2c2c2e"
         self.fg_text = "#ffffff"
         self.accent = "#ff7f32"
 
-        self.font_title = ("Segoe UI", 26, "bold")
-        self.font_label = ("Segoe UI", 14)
-        self.font_button = ("Segoe UI", 12)
-        self.font_item = ("Segoe UI", 11)
-
-        self.show()
+        self.font_title = ("Segoe UI", 20, "bold")
+        self.font_header = ("Segoe UI", 10, "bold")
+        self.font_item = ("Segoe UI", 10)
 
     def show(self):
         route = self.route_repo.get_by_id(self.route_id)
         if not route:
-            messagebox.showerror("Erro", "Linha não encontrada.")
+            messagebox.showerror("Erro", "Linha nao encontrada.")
             return
 
         for widget in self.parent.winfo_children():
@@ -40,160 +38,153 @@ class InterfaceGerenciarAlunosLinha:
 
         self.parent.configure(bg=self.bg_main)
 
+        header_top = tk.Frame(self.parent, bg=self.bg_main)
+        header_top.pack(pady=(15, 10), padx=25, fill="x")
+
         tk.Label(
-            self.parent,
-            text=f"Gerenciar Alunos da Linha: {route.name}",
+            header_top,
+            text=f"VINCULAR ALUNOS: {route.name.upper()}",
             font=self.font_title,
             bg=self.bg_main,
-            fg=self.accent
-        ).pack(pady=25)
+            fg=self.accent,
+            anchor="w"
+        ).pack(side="left")
 
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
-        main_frame.pack(pady=10, padx=0, fill="both", expand=True)
+        main_frame.pack(padx=25, pady=0, fill="both", expand=True)
 
-        header_frame = tk.Frame(main_frame, bg=self.bg_main)
-        header_frame.pack(fill="x", padx=0, pady=(10, 0))
+        header_cols = tk.Frame(main_frame, bg=self.bg_main, height=35)
+        header_cols.pack(fill="x", padx=5)
+        header_cols.pack_propagate(False)
 
-        headers = ["Nome", "Contato", "Endereço", "CPF", "Na Rota"]
-        for i, header in enumerate(headers):
-            lbl = tk.Label(
-                header_frame,
-                text=header,
-                font=("Segoe UI", 12, "bold"),
+        cols = [("Nome", 0.25), ("Contato", 0.15), ("Endereço", 0.35), ("CPF", 0.15), ("Vincular", 0.1)]
+
+        curr_x = 0.0
+        for text, weight in cols:
+            tk.Label(
+                header_cols,
+                text=text.upper(),
+                font=self.font_header,
                 bg=self.bg_main,
                 fg=self.accent,
                 anchor="w"
-            )
-            lbl.grid(row=0, column=i, padx=8, pady=5, sticky="w")
-            header_frame.grid_columnconfigure(i, weight=1 if i < 4 else 0, uniform="col")
+            ).place(relx=curr_x, rely=0, relwidth=weight, relheight=1)
+            curr_x += weight
 
-        list_frame = tk.LabelFrame(
-            main_frame,
-            text="Alunos",
-            font=self.font_label,
-            bg=self.bg_main,
-            fg=self.accent
+        container = tk.Frame(main_frame, bg=self.bg_main)
+        container.pack(fill="both", expand=True, pady=5)
+
+        self.canvas = tk.Canvas(container, bg=self.bg_main, highlightthickness=0)
+        scrollbar = tk.Scrollbar(container, orient="vertical", command=self.canvas.yview)
+        self.scrollable_frame = tk.Frame(self.canvas, bg=self.bg_main)
+
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
-        list_frame.pack(fill="both", expand=True, padx=0, pady=10)
 
-        canvas = tk.Canvas(list_frame, bg=self.bg_main, highlightthickness=0)
-        scrollbar = tk.Scrollbar(list_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg=self.bg_main)
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw", width=1180)
+        self.canvas.configure(yscrollcommand=scrollbar.set)
 
-        window_id = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-
-        def _on_scrollable_configure(event):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-            canvas_width = canvas.winfo_width()
-            canvas.itemconfigure(window_id, width=canvas_width)
-
-        def _on_canvas_configure(event):
-            canvas.itemconfigure(window_id, width=event.width)
-
-        scrollable_frame.bind("<Configure>", _on_scrollable_configure)
-        canvas.bind("<Configure>", _on_canvas_configure)
-
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        canvas.pack(side="left", fill="both", expand=True)
+        self.canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        students = self.student_repo.get_all()
-        route_students = self.route_student_repo.get_students_by_route_id(self.route_id)
-        active_student_ids = {rs.student_id for rs in route_students if rs.end_date is None}
+        self.load_students()
 
-        self.student_vars = {}
-
-        for i, student in enumerate(students):
-            if not student.student_id:
-                continue
-
-            var = tk.BooleanVar(value=student.student_id in active_student_ids)
-            self.student_vars[student.student_id] = var
-
-            student_frame = tk.Frame(scrollable_frame, bg=self.bg_button)
-            student_frame.pack(fill="x", padx=0, pady=5)
-
-            tk.Label(student_frame, text=student.name or "N/A",
-                     font=self.font_item, bg=self.bg_button, fg=self.fg_text,
-                     anchor="w").grid(row=0, column=0, padx=(12,8), pady=5, sticky="w")
-            tk.Label(student_frame, text=student.contact or "N/A",
-                     font=self.font_item, bg=self.bg_button, fg=self.fg_text,
-                     anchor="w").grid(row=0, column=1, padx=8, pady=5, sticky="w")
-            tk.Label(student_frame, text=student.address or "N/A",
-                     font=self.font_item, bg=self.bg_button, fg=self.fg_text,
-                     anchor="w").grid(row=0, column=2, padx=8, pady=5, sticky="w")
-            tk.Label(student_frame, text=student.cpf or "N/A",
-                     font=self.font_item, bg=self.bg_button, fg=self.fg_text,
-                     anchor="w").grid(row=0, column=3, padx=8, pady=5, sticky="w")
-
-            chk = tk.Checkbutton(
-                student_frame,
-                variable=var,
-                bg=self.bg_button,
-                fg=self.fg_text,
-                activebackground=self.bg_button,
-                activeforeground=self.fg_text,
-                highlightthickness=0,
-                bd=0,
-                cursor="hand2",
-                selectcolor=self.bg_button
-            )
-            chk.grid(row=0, column=4, padx=(6, 12), pady=5, sticky="w")
-
-            for col in range(4):
-                student_frame.grid_columnconfigure(col, weight=1, uniform="col")
-            student_frame.grid_columnconfigure(4, weight=0)
-
-        button_frame = tk.Frame(main_frame, bg=self.bg_main)
-        button_frame.pack(pady=20)
+        btn_container = tk.Frame(self.parent, bg=self.bg_main)
+        btn_container.pack(pady=15)
 
         ListRoundedButton(
-            button_frame,
-            text="Salvar",
+            btn_container,
+            text="Salvar alterações",
             command=self.save_changes,
-            bg=self.bg_button,
+            bg=self.accent,
             fg=self.fg_text,
-            font=self.font_button
+            width=180,
+            height=40
         ).pack(side="left", padx=10)
 
         ListRoundedButton(
-            button_frame,
+            btn_container,
             text="Voltar",
             command=self.back,
             bg=self.bg_button,
             fg=self.fg_text,
-            font=self.font_button
+            width=120,
+            height=40
         ).pack(side="left", padx=10)
 
+    def load_students(self):
+        students = self.student_repo.get_all()
+        route_students = self.route_student_repo.get_students_by_route_id(self.route_id)
+        active_ids = {rs.student_id for rs in route_students if rs.end_date is None}
+
+        self.student_vars = {}
+
+        if not students:
+            tk.Label(self.scrollable_frame, text="Nenhum aluno cadastrado.", font=self.font_item, bg=self.bg_main, fg=self.fg_text).pack(pady=20)
+            return
+
+        for student in students:
+            if not student.student_id: continue
+
+            var = tk.BooleanVar(value=student.student_id in active_ids)
+            self.student_vars[student.student_id] = var
+
+            f = tk.Frame(self.scrollable_frame, bg=self.bg_card, height=38)
+            f.pack(fill="x", pady=1, padx=2)
+            f.pack_propagate(False)
+
+            weights = [0.25, 0.15, 0.35, 0.15, 0.1]
+            data = [student.name, student.contact, student.address, student.cpf]
+
+            curr_x = 0.0
+            for i, text in enumerate(data):
+                tk.Label(
+                    f,
+                    text=str(text or "---").upper(),
+                    font=self.font_item,
+                    bg=self.bg_card,
+                    fg=self.fg_text,
+                    anchor="w"
+                ).place(relx=curr_x, rely=0, relwidth=weights[i], relheight=1)
+                curr_x += weights[i]
+
+            chk_frame = tk.Frame(f, bg=self.bg_card)
+            chk_frame.place(relx=curr_x, rely=0, relwidth=weights[4], relheight=1)
+
+            tk.Checkbutton(
+                chk_frame,
+                variable=var,
+                bg=self.bg_card,
+                activebackground=self.bg_card,
+                selectcolor=self.bg_main,
+                bd=0,
+                highlightthickness=0
+            ).pack(expand=True)
 
     def save_changes(self):
-        all_route_students = self.route_student_repo.get_students_by_route_id(self.route_id)
-        current_active_student_ids = {rs.student_id for rs in all_route_students if rs.end_date is None}
-        selected_student_ids = {student_id for student_id, var in self.student_vars.items() if var.get()}
+        all_rs = self.route_student_repo.get_students_by_route_id(self.route_id)
+        active_ids = {rs.student_id for rs in all_rs if rs.end_date is None}
+        selected_ids = {s_id for s_id, var in self.student_vars.items() if var.get()}
+        today = datetime.now().strftime('%Y-%m-%d')
 
-        for student_id in current_active_student_ids - selected_student_ids:
-            self.route_student_repo.update_end_date(
-                self.route_id, student_id, datetime.now().strftime('%Y-%m-%d')
-            )
+        for s_id in active_ids - selected_ids:
+            self.route_student_repo.update_end_date(self.route_id, s_id, today)
 
-        for student_id in selected_student_ids - current_active_student_ids:
-            existing_rs = next((rs for rs in all_route_students if rs.student_id == student_id), None)
-            if existing_rs:
-                self.route_student_repo.update_end_date(self.route_id, student_id, None)
+        for s_id in selected_ids - active_ids:
+            existing = next((rs for rs in all_rs if rs.student_id == s_id), None)
+            if existing:
+                self.route_student_repo.update_end_date(self.route_id, s_id, None)
             else:
                 from app.models.route_student import RouteStudent
-                route_student = RouteStudent(self.route_id, student_id,
-                                             datetime.now().strftime('%Y-%m-%d'), None)
-                success = self.route_student_repo.add(route_student)
-                if not success:
-                    self.route_student_repo.update_end_date(self.route_id, student_id, None)
+                self.route_student_repo.add(RouteStudent(self.route_id, s_id, today, None))
 
-        messagebox.showinfo("Sucesso", "Alterações salvas com sucesso!")
+        messagebox.showinfo("Sucesso", "Lista de alunos atualizada!")
         self.back()
 
     def back(self):
         from app.interface.route.interface_route_students import InterfaceRouteStudents
-        repo = RouteRepository(self.db_path)
-        interface = InterfaceRouteStudents(self.parent, self.db_path,self.route_id, repo.get_by_id(self.route_id).name)
-        interface.show()
+        route = self.route_repo.get_by_id(self.route_id)
+        name = route.name if route else "Rota"
+        InterfaceRouteStudents(self.parent, self.db_path, self.route_id, name).show()

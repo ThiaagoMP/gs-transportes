@@ -5,7 +5,6 @@ from app.repositories.trip_repository import TripRepository
 from app.repositories.vehicle_repository import VehicleRepository
 from app.components.list_rounded_button import ListRoundedButton
 
-
 class InterfaceViagem:
     def __init__(self, parent, db_path):
         self.parent = parent
@@ -26,208 +25,175 @@ class InterfaceViagem:
 
         tk.Label(
             self.parent,
-            text="Lista de Viagens",
-            font=("Segoe UI", 26, "bold"),
+            text="Lista de viagens",
+            font=("Segoe UI", 18, "bold"),
             bg=self.bg_main,
             fg=self.accent
-        ).pack(pady=(20, 10), padx=25, fill="x")
+        ).pack(pady=10)
 
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
-        main_frame.pack(padx=30, pady=10, fill="both", expand=True)
+        main_frame.pack(fill="both", expand=True, padx=20)
 
         style = ttk.Style()
         style.theme_use("clam")
         style.configure(
             "Treeview",
-            font=("Segoe UI", 12),
-            background=self.bg_main,
-            fieldbackground=self.bg_main,
-            foreground=self.fg_text
+            font=("Segoe UI", 10),
+            rowheight=30,
+            background="#2c2c2e",
+            fieldbackground="#2c2c2e",
+            foreground=self.fg_text,
+            borderwidth=0
         )
         style.configure(
             "Treeview.Heading",
-            font=("Segoe UI", 13, "bold"),
+            font=("Segoe UI", 10, "bold"),
             background=self.accent,
-            foreground="#ffffff"
+            foreground="#ffffff",
+            borderwidth=1
         )
         style.map(
             "Treeview",
-            background=[("selected", "#333333")],
+            background=[("selected", self.accent)],
             foreground=[("selected", "#ffffff")]
         )
 
         tree_container = tk.Frame(main_frame, bg=self.bg_main)
         tree_container.pack(fill="both", expand=True)
 
-        tree_container.grid_rowconfigure(0, weight=1)
-        tree_container.grid_columnconfigure(0, weight=1)
-
         self.tree = ttk.Treeview(
             tree_container,
-            columns=("Veículo", "Faturamento Bruto", "Despesas", "Lucro", "Data de Início", "Data de Fim", "Descrição"),
+            columns=("Veiculo", "Bruto", "Despesas", "Lucro", "Inicio", "Fim", "Desc"),
             show="headings",
-            height=15
+            selectmode="browse"
         )
 
         col_defs = [
-            ("Veículo", 150),
-            ("Faturamento Bruto", 160),
-            ("Despesas", 120),
-            ("Lucro", 120),
-            ("Data de Início", 140),
-            ("Data de Fim", 140),
-            ("Descrição", 250)
+            ("Veiculo", "Veículo", 100),
+            ("Bruto", "Bruto (R$)", 100),
+            ("Despesas", "Despesas (R$)", 100),
+            ("Lucro", "Lucro (R$)", 100),
+            ("Inicio", "Início", 95),
+            ("Fim", "Fim", 95),
+            ("Desc", "Descrição", 180)
         ]
 
-        for col, width in col_defs:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=width)
+        for col_id, text, width in col_defs:
+            self.tree.heading(col_id, text=text)
+            self.tree.column(col_id, width=width, anchor="center" if col_id != "Desc" else "w")
 
         scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
 
-        self.tree.grid(row=0, column=0, sticky="nsew")
-        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
         self.tree.bind("<Double-1>", self.on_double_click)
 
-        button_frame = tk.Frame(main_frame, bg=self.bg_main)
-        button_frame.pack(pady=10)
+        button_frame = tk.Frame(self.parent, bg=self.bg_main)
+        button_frame.pack(fill="x", pady=20)
+
+        btns_inner = tk.Frame(button_frame, bg=self.bg_main)
+        btns_inner.pack(expand=True)
 
         actions = [
-            ("Cadastrar Viagem", self.cadastrar_viagem),
-            ("Editar Viagem", self.editar_viagem),
-            ("Excluir Viagem", self.confirm_delete),
-            ("Detalhes", self.abrir_detalhes)
+            ("Nova viagem", self.cadastrar_viagem, self.accent),
+            ("Editar", self.editar_viagem, self.bg_button),
+            ("Detalhes", self.abrir_detalhes, self.bg_button),
+            ("Excluir", self.confirm_delete, "#b00020")
         ]
 
-        for text, cmd in actions:
-            bg_color = "#f44336" if text.startswith("Excluir") else self.bg_button
-            btn = ListRoundedButton(
-                button_frame,
+        for text, cmd, color in actions:
+            ListRoundedButton(
+                btns_inner,
                 text=text,
                 command=cmd,
-                width=210,
-                height=50,
-                bg=bg_color,
-                fg=self.fg_text,
-                hover_bg=self.accent,
-                font=("Segoe UI", 11, "bold")
-            )
-            btn.pack(side="left", padx=10, pady=6)
+                width=150,
+                height=38,
+                bg=color,
+                fg=self.fg_text
+            ).pack(side="left", padx=8)
 
         self.load_trips()
 
     def load_trips(self):
         self.tree.delete(*self.tree.get_children())
-        trips = self.trip_repo.get_all()
+        try:
+            trips = self.trip_repo.get_all()
+            for trip in trips:
+                trip_id = getattr(trip, 'trip_id', None)
+                if not trip_id: continue
 
-        for trip in trips:
-            trip_id = getattr(trip, 'trip_id', None)
-            if trip_id is None or not str(trip_id).strip():
-                continue
+                vehicle_id = getattr(trip, 'vehicle_id', None)
+                placa = "-"
+                if vehicle_id:
+                    vehicle = self.vehicle_repo.get_by_id(vehicle_id)
+                    if vehicle:
+                        placa = getattr(vehicle, "license_plate", "-").upper()
 
-            vehicle_id = getattr(trip, 'vehicle_id', None)
-            placa = "Desconhecido"
-            if vehicle_id:
-                vehicle = self.vehicle_repo.get_by_id(vehicle_id)
-                if vehicle and getattr(vehicle, "license_plate", None):
-                    placa = vehicle.license_plate
+                fare = float(getattr(trip, 'passenger_fare', 0) or 0)
+                count = int(getattr(trip, 'passenger_count', 0) or 0)
+                exp = float(getattr(trip, 'additional_expenses', 0) or 0)
 
-            passenger_fare = float(getattr(trip, 'passenger_fare', 0.0) or 0)
-            passenger_count = int(getattr(trip, 'passenger_count', 0) or 0)
-            expenses = float(getattr(trip, 'additional_expenses', 0.0) or 0)
+                bruto = fare * count
+                lucro = bruto - exp
 
-            faturamento_bruto = passenger_fare * passenger_count
-            lucro = faturamento_bruto - expenses
+                start = self.format_date(getattr(trip, 'start_date', ''))
+                end = self.format_date(getattr(trip, 'end_date', ''))
+                desc = (getattr(trip, 'description', '') or '-').upper()
 
-            start_date_display = self.format_date(getattr(trip, 'start_date', ''))
-            end_date_display = self.format_date(getattr(trip, 'end_date', ''))
-
-            descricao = getattr(trip, 'description', '') or '-'
-
-            self.tree.insert("", "end", iid=str(trip_id), values=(
-                placa,
-                f"{faturamento_bruto:.2f}",
-                f"{expenses:.2f}",
-                f"{lucro:.2f}",
-                start_date_display,
-                end_date_display,
-                descricao
-            ))
+                self.tree.insert("", "end", iid=str(trip_id), values=(
+                    placa,
+                    f"{bruto:.2f}",
+                    f"{exp:.2f}",
+                    f"{lucro:.2f}",
+                    start,
+                    end,
+                    desc
+                ))
+        except Exception:
+            pass
 
     def format_date(self, date_value):
+        if not date_value: return "-"
         if isinstance(date_value, str):
             try:
-                date_obj = datetime.strptime(date_value, '%Y-%m-%d')
-                return date_obj.strftime('%d/%m/%Y')
-            except ValueError:
+                return datetime.strptime(date_value, '%Y-%m-%d').strftime('%d/%m/%Y')
+            except:
                 return date_value
-        elif isinstance(date_value, datetime):
-            return date_value.strftime('%d/%m/%Y')
-        return str(date_value)
+        return date_value.strftime('%d/%m/%Y') if hasattr(date_value, 'strftime') else str(date_value)
 
     def on_double_click(self, event):
         item = self.tree.identify_row(event.y)
         if item:
-            try:
-                trip_id = int(item)
-                from app.interface.trip.interface_editar_viagem import InterfaceEditarViagem
-                interface = InterfaceEditarViagem(self.parent, self.db_path, trip_id)
-                interface.show()
-            except ValueError:
-                messagebox.showerror("Erro", "ID da viagem inválido.")
+            from app.interface.trip.interface_editar_viagem import InterfaceEditarViagem
+            InterfaceEditarViagem(self.parent, self.db_path, int(item)).show()
 
     def cadastrar_viagem(self):
-        try:
-            from app.interface.trip.interface_cadastrar_viagem import InterfaceCadastrarViagem
-            interface = InterfaceCadastrarViagem(self.parent, self.db_path)
-            interface.show()
-        except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao abrir o cadastro: {str(e)}")
+        from app.interface.trip.interface_cadastrar_viagem import InterfaceCadastrarViagem
+        InterfaceCadastrarViagem(self.parent, self.db_path).show()
 
     def editar_viagem(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione uma viagem para editar.")
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Aviso", "Selecione uma viagem.")
             return
-        try:
-            trip_id = int(selected_item[0])
-            from app.interface.trip.interface_editar_viagem import InterfaceEditarViagem
-            interface = InterfaceEditarViagem(self.parent, self.db_path, trip_id)
-            interface.show()
-        except ValueError:
-            messagebox.showerror("Erro", "ID da viagem inválido.")
+        from app.interface.trip.interface_editar_viagem import InterfaceEditarViagem
+        InterfaceEditarViagem(self.parent, self.db_path, int(sel[0])).show()
 
     def confirm_delete(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione uma viagem para excluir.")
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Aviso", "Selecione uma viagem.")
             return
-
-        trip_id = selected_item[0]
-        try:
-            trip_id = int(trip_id)
-        except ValueError:
-            messagebox.showerror("Erro", "ID inválido.")
-            return
-
-        if messagebox.askyesno("Confirmação", f"Deseja realmente excluir a viagem com ID {trip_id}?"):
-            if self.trip_repo.delete(trip_id):
-                messagebox.showinfo("Sucesso", "Viagem excluída com sucesso!")
+        if messagebox.askyesno("Confirmar", "Deseja excluir permanentemente esta viagem?"):
+            if self.trip_repo.delete(int(sel[0])):
                 self.load_trips()
-            else:
-                messagebox.showerror("Erro", "Falha ao excluir a viagem.")
 
     def abrir_detalhes(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione uma viagem para ver os detalhes.")
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Aviso", "Selecione uma viagem.")
             return
-        try:
-            trip_id = int(selected_item[0])
-            from app.interface.trip.interface_trip_details import InterfaceTripDetails
-            interface = InterfaceTripDetails(self.parent, self.db_path, trip_id)
-            interface.show()
-        except ValueError:
-            messagebox.showerror("Erro", "ID da viagem inválido.")
+        from app.interface.trip.interface_trip_details import InterfaceTripDetails
+        InterfaceTripDetails(self.parent, self.db_path, int(sel[0])).show()

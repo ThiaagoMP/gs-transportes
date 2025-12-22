@@ -1,6 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 from datetime import datetime
 
 from app.repositories.driver_repository import DriverRepository
@@ -9,33 +8,20 @@ from app.components.custom_calendar import CustomCalendar
 from app.components.list_rounded_button import ListRoundedButton
 
 
-def add_placeholder(entry: ttk.Entry, placeholder: str):
+def add_placeholder(entry, placeholder):
     entry._ph_text = placeholder
     entry._ph_active = False
-    entry._orig_validate = entry.cget("validate")
-    entry._orig_vcmd = entry.cget("validatecommand")
-    entry._orig_style = entry.cget("style") or "TEntry"
-
-    def _disable_validation():
-        entry.configure(validate="none")
-
-    def _restore_validation():
-        entry.configure(validate=entry._orig_validate, validatecommand=entry._orig_vcmd)
 
     def _show_placeholder():
-        _disable_validation()
         entry.delete(0, tk.END)
         entry.insert(0, placeholder)
-        entry.configure(style="Placeholder.TEntry")
+        entry.config(fg="#888888")
         entry._ph_active = True
-        _restore_validation()
 
     def _hide_placeholder():
-        _disable_validation()
         entry.delete(0, tk.END)
-        entry.configure(style=entry._orig_style or "TEntry")
+        entry.config(fg="#ffffff")
         entry._ph_active = False
-        _restore_validation()
 
     def on_focus_in(_):
         if entry._ph_active:
@@ -50,11 +36,9 @@ def add_placeholder(entry: ttk.Entry, placeholder: str):
     _show_placeholder()
 
 
-def get_entry_value(entry: ttk.Entry) -> str:
+def get_entry_value(entry) -> str:
     text = entry.get().strip()
-    if getattr(entry, "_ph_active", False):
-        return ""
-    if text == getattr(entry, "_ph_text", None):
+    if getattr(entry, "_ph_active", False) or text == getattr(entry, "_ph_text", None):
         return ""
     return text
 
@@ -67,300 +51,208 @@ class InterfaceRegisterDriver:
 
         self.bg_main = "#1c1c1e"
         self.bg_button = "#3a3f47"
+        self.bg_field = "#2c2c2e"
         self.fg_text = "#ffffff"
         self.accent = "#ff7f32"
 
-        self.font_title = ("Segoe UI", 26, "bold")
-        self.font_label = ("Segoe UI", 14)
-        self.font_entry = ("Segoe UI", 12)
-        self.font_button = ("Segoe UI", 10)
+        self.font_title = ("Segoe UI", 18, "bold")
+        self.font_label = ("Segoe UI", 9, "bold")
+        self.font_entry = ("Segoe UI", 10)
 
     def show(self):
         for widget in self.parent.winfo_children():
             widget.destroy()
 
+        self.parent.configure(bg=self.bg_main)
+
         tk.Label(
-            self.parent, text="Cadastrar Motorista",
-            font=self.font_title, bg=self.bg_main, fg=self.accent
-        ).pack(pady=25)
+            self.parent,
+            text="Cadastrar motorista",
+            font=self.font_title,
+            bg=self.bg_main,
+            fg=self.accent
+        ).pack(pady=(15, 10))
 
-        main_frame = tk.Frame(self.parent, bg=self.bg_main)
-        main_frame.pack(pady=10, padx=(350, 0), anchor="nw")
-        main_frame.columnconfigure(0, weight=1)
+        container = tk.Frame(self.parent, bg=self.bg_main)
+        container.pack(expand=True, fill="both")
 
-        sub_frame = tk.Frame(main_frame, bg=self.bg_main)
-        sub_frame.grid(row=0, column=0)
+        main_frame = tk.Frame(container, bg=self.bg_main)
+        main_frame.pack(padx=20, pady=5)
 
-        style = ttk.Style()
-        style.theme_use("clam")
-        style.configure("TLabel", font=self.font_label, background=self.bg_main, foreground=self.fg_text)
-        style.configure("TEntry", font=self.font_entry, padding=6, fieldbackground=self.bg_button, foreground=self.fg_text)
-        style.configure("TButton", font=self.font_button, padding=10, background=self.bg_button, foreground=self.fg_text)
-        style.map("TButton", background=[("active", self.accent)], foreground=[("active", self.fg_text)])
-        style.configure("Placeholder.TEntry", foreground="#7a7a7a")
+        fields = [
+            ("Nome completo*:", "Ex.: Joao Silva"),
+            ("Salário (R$)*:", "0.00"),
+            ("Contato*:", "(00) 00000-0000"),
+            ("CPF*:", "000.000.000-00"),
+            ("RG*:", "00.000.000-0"),
+            ("CNH*:", "00000000000")
+        ]
 
-        ttk.Label(sub_frame, text="Nome*:").grid(row=0, column=0, sticky="e", padx=(0, 10), pady=10)
-        name_entry = ttk.Entry(sub_frame, width=50)
-        name_entry.grid(row=0, column=1, sticky="w", padx=(0, 10), pady=10)
-        add_placeholder(name_entry, "Ex.: João Silva")
+        self.entries = {}
 
-        ttk.Label(sub_frame, text="Salário (R$)*:").grid(row=1, column=0, sticky="e", padx=(0, 10), pady=10)
-        salary_entry = ttk.Entry(
-            sub_frame, width=50, validate="key",
-            validatecommand=(self.parent.register(self.validate_decimal), "%P")
-        )
-        salary_entry.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=10)
-        add_placeholder(salary_entry, "Ex.: 2500.00")
+        for i, (label_text, ph) in enumerate(fields):
+            tk.Label(main_frame, text=label_text, font=self.font_label, bg=self.bg_main, fg="#8e8e93").grid(row=i, column=0, sticky="e", padx=10, pady=4)
 
-        ttk.Label(sub_frame, text="Contato*:").grid(row=2, column=0, sticky="e", padx=(0, 10), pady=10)
-        contact_entry = ttk.Entry(sub_frame, width=50)
-        contact_entry.grid(row=2, column=1, sticky="w", padx=(0, 10), pady=10)
-        add_placeholder(contact_entry, "Ex.: joao@email.com")
+            val_cmd = None
+            if "Salário" in label_text:
+                val_cmd = (self.parent.register(self.validate_decimal), "%P")
+            elif "CPF" in label_text:
+                val_cmd = (self.parent.register(self.validate_and_format_cpf), "%P", "%W")
+            elif "RG" in label_text:
+                val_cmd = (self.parent.register(self.validate_and_format_rg), "%P", "%W")
 
-        ttk.Label(sub_frame, text="Data de Início*:").grid(row=3, column=0, sticky="e", padx=(0, 10), pady=10)
-        date_frame = tk.Frame(sub_frame, bg=self.bg_main)
-        date_frame.grid(row=3, column=1, sticky="w", padx=(0, 10), pady=10)
-        start_date_entry = tk.Entry(date_frame, width=45, font=self.font_entry, bg=self.bg_button, fg=self.fg_text,
-                                    insertbackground=self.fg_text, state="readonly")
-        start_date_entry.pack(side="left")
-        start_date_entry.insert(0, datetime.now().strftime('%d/%m/%Y'))
+            entry = tk.Entry(
+                main_frame, width=40, font=self.font_entry,
+                bg=self.bg_field, fg=self.fg_text,
+                insertbackground=self.fg_text, relief="flat", borderwidth=0
+            )
+            if val_cmd:
+                entry.configure(validate="key", validatecommand=val_cmd)
+
+            entry.grid(row=i, column=1, sticky="w", pady=4, ipady=5)
+            add_placeholder(entry, ph)
+            self.entries[label_text] = entry
+
+        tk.Label(main_frame, text="Início*:", font=self.font_label, bg=self.bg_main, fg="#8e8e93").grid(row=6, column=0, sticky="e", padx=10, pady=4)
+        start_date_f = tk.Frame(main_frame, bg=self.bg_main)
+        start_date_f.grid(row=6, column=1, sticky="w", pady=4)
+
+        self.start_date_var = tk.StringVar(value=datetime.now().strftime('%d/%m/%Y'))
+        tk.Label(
+            start_date_f, textvariable=self.start_date_var, width=22, font=self.font_entry,
+            bg=self.bg_field, fg=self.fg_text, anchor="w", padx=10
+        ).pack(side="left", ipady=5)
 
         ListRoundedButton(
-            date_frame, text="Selecionar Data",
-            command=lambda: self.open_calendar(start_date_entry),
-            bg=self.bg_button, fg=self.fg_text, font=self.font_button
+            start_date_f, text="Data",
+            command=lambda: self.open_calendar(self.start_date_var),
+            width=80, height=30, bg=self.accent, fg=self.fg_text
         ).pack(side="left", padx=5)
 
-        ttk.Label(sub_frame, text="Data de Término:").grid(row=4, column=0, sticky="e", padx=(0, 10), pady=10)
-        end_date_frame = tk.Frame(sub_frame, bg=self.bg_main)
-        end_date_frame.grid(row=4, column=1, sticky="w", padx=(0, 10), pady=10)
-        end_date_entry = tk.Entry(end_date_frame, width=45, font=self.font_entry, bg=self.bg_button,
-                                  fg=self.fg_text, insertbackground=self.fg_text, state="readonly")
-        end_date_entry.pack(side="left")
+        tk.Label(main_frame, text="Término:", font=self.font_label, bg=self.bg_main, fg="#8e8e93").grid(row=7, column=0, sticky="e", padx=10, pady=4)
+        end_date_f = tk.Frame(main_frame, bg=self.bg_main)
+        end_date_f.grid(row=7, column=1, sticky="w", pady=4)
+
+        self.end_date_var = tk.StringVar(value="")
+        tk.Label(
+            end_date_f, textvariable=self.end_date_var, width=22, font=self.font_entry,
+            bg=self.bg_field, fg=self.fg_text, anchor="w", padx=10
+        ).pack(side="left", ipady=5)
 
         ListRoundedButton(
-            end_date_frame, text="Selecionar Data",
-            command=lambda: self.open_calendar(end_date_entry),
-            bg=self.bg_button, fg=self.fg_text, font=self.font_button
+            end_date_f, text="Data",
+            command=lambda: self.open_calendar(self.end_date_var),
+            width=80, height=30, bg=self.bg_button, fg=self.fg_text
         ).pack(side="left", padx=5)
 
         ListRoundedButton(
-            end_date_frame, text="Limpar",
-            command=lambda: end_date_entry.config(state="normal") or end_date_entry.delete(0, tk.END) or end_date_entry.config(state="readonly"),
-            bg=self.bg_button, fg=self.fg_text, font=self.font_button
-        ).pack(side="left", padx=5)
+            end_date_f, text="X",
+            command=self.clear_end_date,
+            width=40, height=30, bg="#555555", fg=self.fg_text
+        ).pack(side="left")
 
-        ttk.Label(sub_frame, text="CPF*:").grid(row=5, column=0, sticky="e", padx=(0, 10), pady=10)
-        cpf_entry = ttk.Entry(
-            sub_frame, width=50, validate="key",
-            validatecommand=(self.parent.register(self.validate_and_format_cpf), "%P", "%s", "%W")
-        )
-        cpf_entry.grid(row=5, column=1, sticky="w", padx=(0, 10), pady=10)
-        add_placeholder(cpf_entry, "Ex.: 123.456.789-00")
+        tk.Label(main_frame, text="Extras:", font=self.font_label, bg=self.bg_main, fg="#8e8e93").grid(row=8, column=0, sticky="ne", padx=10, pady=8)
+        self.extra_info = tk.Text(main_frame, width=38, height=3, font=self.font_entry,
+                                  bg=self.bg_field, fg=self.fg_text,
+                                  insertbackground=self.fg_text, relief="flat", padx=5, pady=5)
+        self.extra_info.grid(row=8, column=1, sticky="w", pady=8)
 
-        ttk.Label(sub_frame, text="RG*:").grid(row=6, column=0, sticky="e", padx=(0, 10), pady=10)
-        rg_entry = ttk.Entry(
-            sub_frame, width=50, validate="key",
-            validatecommand=(self.parent.register(self.validate_and_format_rg), "%P", "%s", "%W")
-        )
-        rg_entry.grid(row=6, column=1, sticky="w", padx=(0, 10), pady=10)
-        add_placeholder(rg_entry, "Ex.: 12.345.678-9")
-
-        ttk.Label(sub_frame, text="CNH*:").grid(row=7, column=0, sticky="e", padx=(0, 10), pady=10)
-        cnh_entry = ttk.Entry(sub_frame, width=50)
-        cnh_entry.grid(row=7, column=1, sticky="w", padx=(0, 10), pady=10)
-        add_placeholder(cnh_entry, "Ex.: 12345678901")
-
-        ttk.Label(sub_frame, text="Informações Extras:").grid(row=8, column=0, sticky="e", padx=(0, 10), pady=10)
-        extra_info_entry = tk.Text(
-            sub_frame, width=45, height=3,
-            font=self.font_entry, bg=self.bg_button, fg=self.fg_text,
-            insertbackground=self.fg_text
-        )
-        extra_info_entry.grid(row=8, column=1, sticky="w", padx=(0, 10), pady=10)
-        extra_info_entry.insert("1.0", "Opcional")
-
-        extra_info_entry.bind(
-            "<FocusIn>",
-            lambda e: extra_info_entry.delete("1.0", tk.END)
-            if extra_info_entry.get("1.0", tk.END).strip() == "Opcional"
-            else None
-        )
-
-        button_frame = tk.Frame(sub_frame, bg=self.bg_main)
-        button_frame.grid(row=9, column=0, columnspan=2, pady=20)
-
-        inner_button_frame = tk.Frame(button_frame, bg=self.bg_main)
-        inner_button_frame.pack(anchor="center")
+        actions_f = tk.Frame(container, bg=self.bg_main)
+        actions_f.pack(pady=15)
 
         ListRoundedButton(
-            inner_button_frame, text="Cadastrar",
-            command=lambda: self.save_driver(
-                name_entry, salary_entry, contact_entry, start_date_entry,
-                end_date_entry, cpf_entry, rg_entry, cnh_entry, extra_info_entry
-            ),
-            bg=self.bg_button, fg=self.fg_text, font=self.font_button
+            actions_f, text="Salvar cadastro",
+            command=self.save_driver,
+            width=180, height=40, bg=self.accent, fg=self.fg_text
         ).pack(side="left", padx=10)
 
         ListRoundedButton(
-            inner_button_frame, text="Voltar",
+            actions_f, text="Voltar",
             command=self.back,
-            bg=self.bg_button, fg=self.fg_text, font=self.font_button
-        ).pack(side="left", padx=5)
-
-        ttk.Label(
-            sub_frame, text="* Campos obrigatórios",
-            font=("Segoe UI", 12, "italic"), foreground=self.fg_text
-        ).grid(row=10, column=0, columnspan=2, pady=15)
+            width=120, height=40, bg=self.bg_button, fg=self.fg_text
+        ).pack(side="left", padx=10)
 
     def validate_decimal(self, P):
-        if not P:
-            return True
-        for c in P:
-            if not (c.isdigit() or c in ".,"):
-                return False
-        P = P.replace(',', '.')
-        return P.count('.') <= 1
+        if not P: return True
+        p_fixed = P.replace(',', '.')
+        if p_fixed == "." or p_fixed == "": return True
+        return p_fixed.count('.') <= 1 and all(c.isdigit() or c == '.' for c in p_fixed)
 
-    def validate_and_format_cpf(self, P, S, W):
-        if not P:
-            return True
-
+    def validate_and_format_cpf(self, P, W):
+        if not P: return True
         digits = ''.join(c for c in P if c.isdigit())
-        if len(digits) > 11:
-            return False
-
-        formatted = self.format_cpf(digits)
-
+        if len(digits) > 11: return False
+        formatted = ""
+        if len(digits) <= 3: formatted = digits
+        elif len(digits) <= 6: formatted = f"{digits[:3]}.{digits[3:]}"
+        elif len(digits) <= 9: formatted = f"{digits[:3]}.{digits[3:6]}.{digits[6:]}"
+        else: formatted = f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
         if formatted != P:
             entry = self.parent.nametowidget(W)
-            entry.delete(0, tk.END)
-            entry.insert(0, formatted)
-
+            entry.after(1, lambda: self._update_entry(entry, formatted))
         return True
 
-    def validate_and_format_rg(self, P, S, W):
-        if not P:
-            return True
-
+    def validate_and_format_rg(self, P, W):
+        if not P: return True
         digits = ''.join(c for c in P if c.isdigit())
-        if len(digits) > 9:
-            return False
-
-        formatted = self.format_rg(digits)
-
+        if len(digits) > 9: return False
+        formatted = ""
+        if len(digits) <= 2: formatted = digits
+        elif len(digits) <= 5: formatted = f"{digits[:2]}.{digits[2:]}"
+        elif len(digits) <= 8: formatted = f"{digits[:2]}.{digits[2:5]}.{digits[5:]}"
+        else: formatted = f"{digits[:2]}.{digits[2:5]}.{digits[5:8]}-{digits[8:]}"
         if formatted != P:
             entry = self.parent.nametowidget(W)
-            entry.delete(0, tk.END)
-            entry.insert(0, formatted)
-
+            entry.after(1, lambda: self._update_entry(entry, formatted))
         return True
 
-    def format_cpf(self, digits):
-        if len(digits) <= 3:
-            return digits
-        if len(digits) <= 6:
-            return f"{digits[:3]}.{digits[3:]}"
-        if len(digits) <= 9:
-            return f"{digits[:3]}.{digits[3:6]}.{digits[6:]}"
-        return f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
+    def _update_entry(self, entry, text):
+        entry.delete(0, tk.END)
+        entry.insert(0, text)
 
-    def format_rg(self, digits):
-        if len(digits) <= 2:
-            return digits
-        if len(digits) <= 5:
-            return f"{digits[:2]}.{digits[2:]}"
-        if len(digits) <= 8:
-            return f"{digits[:2]}.{digits[2:5]}.{digits[5:]}"
-        return f"{digits[:2]}.{digits[2:5]}.{digits[5:8]}-{digits[8:]}"
+    def clear_end_date(self):
+        self.end_date_var.set("")
 
-    def open_calendar(self, date_entry):
-        def callback(selected_date):
-            date_entry.config(state="normal")
-            date_entry.delete(0, tk.END)
-            date_entry.insert(0, selected_date.strftime('%d/%m/%Y'))
-            date_entry.config(state="readonly")
-
+    def open_calendar(self, var):
+        def callback(date_obj):
+            var.set(date_obj.strftime('%d/%m/%Y'))
         CustomCalendar(self.parent, callback=callback, initial_date=datetime.now().date())
 
-    def save_driver(self, name_entry, salary_entry, contact_entry, start_date_entry, end_date_entry, cpf_entry, rg_entry, cnh_entry, extra_info_entry):
-        name = get_entry_value(name_entry)
-        salary_str = get_entry_value(salary_entry)
-        salary = float(salary_str.replace(',', '.') or 0.0)
-        contact = get_entry_value(contact_entry)
-
-        start_date = start_date_entry.get().strip()
-        end_date = end_date_entry.get().strip()
-
-        cpf = get_entry_value(cpf_entry).replace(".", "").replace("-", "")
-        rg = get_entry_value(rg_entry).replace(".", "").replace("-", "")
-        cnh = get_entry_value(cnh_entry)
-
-        extra_info = extra_info_entry.get("1.0", tk.END).strip() or None
-
-        if not all([name, salary, contact, start_date, cpf, rg, cnh]):
-            messagebox.showerror("Erro", "Preencha todos os campos obrigatórios.")
-            return
-
-        if len(cpf) != 11:
-            messagebox.showerror("Erro", "CPF deve ter exatamente 11 dígitos.")
-            return
-
-        if len(rg) > 9:
-            messagebox.showerror("Erro", "RG deve ter no máximo 9 dígitos.")
+    def save_driver(self):
+        data = {k: get_entry_value(v) for k, v in self.entries.items()}
+        if not all([data["Nome completo*:"], data["Salário (R$)*:"], data["Contato*:"], data["CPF*:"], data["RG*:"], data["CNH*:"]]):
+            messagebox.showerror("Erro", "Preencha todos os campos obrigatorios.")
             return
 
         try:
-            start_date_obj = datetime.strptime(start_date, '%d/%m/%Y')
-            end_date_obj = datetime.strptime(end_date, '%d/%m/%Y') if end_date else None
+            salary = float(data["Salário (R$)*:"].replace(',', '.'))
+            start_str = self.start_date_var.get()
+            end_str = self.end_date_var.get()
+            start_dt = datetime.strptime(start_str, '%d/%m/%Y')
+            end_dt = datetime.strptime(end_str, '%d/%m/%Y') if end_str else None
 
-            if end_date_obj and end_date_obj < start_date_obj:
-                messagebox.showerror("Erro", "Data de Término não pode ser anterior à Data de Início.")
+            if end_dt and end_dt < start_dt:
+                messagebox.showerror("Erro", "Data de termino invalida.")
                 return
-        except ValueError:
-            messagebox.showerror("Erro", "Formato de data inválido.")
-            return
 
-        try:
             driver = Driver(
-                None, name, salary, contact,
-                start_date_obj.strftime('%Y-%m-%d'),
-                end_date_obj.strftime('%Y-%m-%d') if end_date_obj else None,
-                cpf, rg, cnh, extra_info
+                driver_id=None,
+                name=data["Nome completo*:"],
+                salary=salary,
+                contact=data["Contato*:"],
+                start_date=start_dt.strftime('%Y-%m-%d'),
+                end_date=end_dt.strftime('%Y-%m-%d') if end_dt else None,
+                cpf=''.join(filter(str.isdigit, data["CPF*:"])),
+                rg=''.join(filter(str.isdigit, data["RG*:"])),
+                cnh=data["CNH*:"],
+                extra_info=self.extra_info.get("1.0", tk.END).strip().upper()
             )
+
             self.driver_repo.create(driver)
-
-            messagebox.showinfo("Sucesso", f"Motorista '{name}' cadastrado com sucesso!")
-
-            self.clear_form(
-                name_entry, salary_entry, contact_entry, start_date_entry,
-                end_date_entry, cpf_entry, rg_entry, cnh_entry, extra_info_entry
-            )
-
+            messagebox.showinfo("Sucesso", "Motorista cadastrado.")
+            self.back()
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao cadastrar motorista: {str(e)}")
-
-    def clear_form(self, name_entry, salary_entry, contact_entry, start_date_entry, end_date_entry, cpf_entry, rg_entry, cnh_entry, extra_info_entry):
-
-        name_entry.delete(0, tk.END)
-        salary_entry.delete(0, tk.END)
-        contact_entry.delete(0, tk.END)
-
-        start_date_entry.config(state="normal")
-        start_date_entry.delete(0, tk.END)
-        start_date_entry.insert(0, datetime.now().strftime('%d/%m/%Y'))
-        start_date_entry.config(state="readonly")
-
-        end_date_entry.config(state="normal")
-        end_date_entry.delete(0, tk.END)
-        end_date_entry.config(state="readonly")
-
-        cpf_entry.delete(0, tk.END)
-        rg_entry.delete(0, tk.END)
-        cnh_entry.delete(0, tk.END)
-
-        extra_info_entry.delete("1.0", tk.END)
-        extra_info_entry.insert("1.0", "Opcional")
+            messagebox.showerror("Erro", str(e))
 
     def back(self):
         from app.interface.driver.interface_list_drivers import InterfaceListDrivers

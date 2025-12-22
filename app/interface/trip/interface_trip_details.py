@@ -7,6 +7,7 @@ from app.repositories.trip_driver_repository import TripDriverRepository
 from app.repositories.driver_repository import DriverRepository
 from app.components.list_rounded_button import ListRoundedButton
 
+
 class InterfaceTripDetails:
     def __init__(self, parent, db_path, trip_id):
         self.parent = parent
@@ -19,7 +20,7 @@ class InterfaceTripDetails:
         self.driver_repo = DriverRepository(self.db_path)
 
         self.bg_main = "#1c1c1e"
-        self.bg_button = "#3a3f47"
+        self.bg_button = "#2c2c2e"
         self.fg_text = "#ffffff"
         self.accent = "#ff7f32"
 
@@ -29,13 +30,27 @@ class InterfaceTripDetails:
 
         self.parent.configure(bg=self.bg_main)
 
+        canvas = tk.Canvas(self.parent, bg=self.bg_main, highlightthickness=0)
+        scrollbar = tk.Scrollbar(self.parent, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=self.bg_main)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=self.parent.winfo_width())
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
         tk.Label(
-            self.parent,
-            text="Detalhes da Viagem",
-            font=("Segoe UI", 26, "bold"),
+            scrollable_frame,
+            text="Detalhes da viagem",
+            font=("Segoe UI", 16, "bold"),
             bg=self.bg_main,
             fg=self.accent
-        ).pack(pady=(20, 10))
+        ).pack(pady=(10, 5))
 
         trip = self.trip_repo.get_by_id(self.trip_id)
         if not trip:
@@ -43,148 +58,120 @@ class InterfaceTripDetails:
             return
 
         vehicle = self.vehicle_repo.get_by_id(getattr(trip, "vehicle_id", None))
-        vehicle_plate = getattr(vehicle, "license_plate", "Desconhecido") if vehicle else "Desconhecido"
-        avg_km_per_liter = getattr(vehicle, "avg_km_per_liter", 1) if vehicle else 1
+        vehicle_plate = getattr(vehicle, "license_plate", "---").upper() if vehicle else "---"
+        avg_km_l = getattr(vehicle, "avg_km_per_liter", 1) if vehicle else 1
 
-        passenger_fare = float(getattr(trip, "passenger_fare", 0.0) or 0)
-        passenger_count = int(getattr(trip, "passenger_count", 0) or 0)
+        fare = float(getattr(trip, "passenger_fare", 0.0) or 0)
+        count = int(getattr(trip, "passenger_count", 0) or 0)
         expenses = float(getattr(trip, "additional_expenses", 0.0) or 0)
         total_km = float(getattr(trip, "total_km", 0.0) or 0)
-        faturamento_bruto = passenger_fare * passenger_count
-        lucro = faturamento_bruto - expenses
-        gasto_gasolina = total_km / avg_km_per_liter if avg_km_per_liter != 0 else 0
+        bruto = fare * count
+        lucro = bruto - expenses
+        gas = total_km / avg_km_l if avg_km_l != 0 else 0
 
-        start_date = self.format_date(getattr(trip, "start_date", ""))
-        end_date = self.format_date(getattr(trip, "end_date", ""))
-        descricao = getattr(trip, "description", "") or "-"
+        detalhes = [
+            ("Placa", vehicle_plate),
+            ("Estimativa (L)", f"{gas:.2f}"),
+            ("Bruto (R$)", f"{bruto:.2f}"),
+            ("Despesas (R$)", f"{expenses:.2f}"),
+            ("Lucro (R$)", f"{lucro:.2f}"),
+            ("Valor p/ pass.", f"{fare:.2f}"),
+            ("Qtd. passageiros", str(count)),
+            ("Total KM", f"{total_km:.2f}"),
+            ("Início", self.format_date(getattr(trip, "start_date", ""))),
+            ("Fim", self.format_date(getattr(trip, "end_date", "")))
+        ]
 
-        frame = tk.Frame(self.parent, bg=self.bg_main)
-        frame.pack(padx=40, pady=20, fill="x")
+        info_grid = tk.Frame(scrollable_frame, bg=self.bg_main)
+        info_grid.pack(padx=20, pady=5, fill="x")
 
-        detalhes = {
-            "Placa do Veículo": vehicle_plate,
-            "Gasto aproximado de gasolina (L)": f"{gasto_gasolina:.2f}",
-            "Faturamento Bruto (R$)": f"R$ {faturamento_bruto:.2f}",
-            "Despesas (R$)": f"R$ {expenses:.2f}",
-            "Lucro (R$)": f"R$ {lucro:.2f}",
-            "Valor por Passageiro (R$)": f"R$ {passenger_fare:.2f}",
-            "Quantidade de Passageiros": str(passenger_count),
-            "Total de KM": f"{total_km:.2f} km",
-            "Data de Início": start_date,
-            "Data de Fim": end_date,
-            "Descrição": descricao,
-        }
+        for idx, (label_text, value_text) in enumerate(detalhes):
+            row = idx // 2
+            col = (idx % 2) * 2
 
-        for i, (label_text, value_text) in enumerate(detalhes.items()):
             tk.Label(
-                frame,
-                text=label_text + ":",
-                font=("Segoe UI", 12, "bold"),
-                bg=self.bg_main,
-                fg=self.fg_text
-            ).grid(row=i, column=0, sticky="nw", padx=(10, 20), pady=5)
+                info_grid, text=label_text + ":", font=("Segoe UI", 8, "bold"),
+                bg=self.bg_main, fg="#8e8e93"
+            ).grid(row=row, column=col, sticky="e", padx=(10, 5), pady=2)
 
-            if label_text == "Descrição":
-                text_box = tk.Text(
-                    frame,
-                    font=("Segoe UI", 12),
-                    bg=self.bg_button,
-                    fg=self.fg_text,
-                    width=40,
-                    height=5,
-                    wrap="word",
-                    padx=8,
-                    pady=4
-                )
-                text_box.insert("1.0", value_text)
-                text_box.config(state="disabled")
-                text_box.grid(row=i, column=1, sticky="w", pady=5)
-            else:
-                color = self.fg_text
-                if "Lucro" in label_text:
-                    color = "#00ff7f"
-                elif "Despesas" in label_text:
-                    color = "#ff4c4c"
+            color = self.fg_text
+            if "Lucro" in label_text:
+                color = "#00ff7f"
+            elif "Despesas" in label_text:
+                color = "#ff4c4c"
 
-                tk.Label(
-                    frame,
-                    text=value_text,
-                    font=("Segoe UI", 12),
-                    bg=self.bg_button,
-                    fg=color,
-                    anchor="w",
-                    width=40,
-                    padx=8,
-                    pady=4
-                ).grid(row=i, column=1, sticky="w", pady=5)
+            lbl_val = tk.Label(
+                info_grid, text=value_text, font=("Segoe UI", 9, "bold"),
+                bg=self.bg_button, fg=color, width=18, anchor="w", padx=8, pady=2
+            )
+            lbl_val.grid(row=row, column=col + 1, sticky="w", pady=2)
+
+        desc_frame = tk.Frame(scrollable_frame, bg=self.bg_main)
+        desc_frame.pack(padx=20, pady=5, fill="x")
 
         tk.Label(
-            self.parent,
-            text="Motoristas que participaram desta viagem:",
-            font=("Segoe UI", 14, "bold"),
-            bg=self.bg_main,
-            fg=self.accent
+            desc_frame, text="Descrição:", font=("Segoe UI", 8, "bold"),
+            bg=self.bg_main, fg="#8e8e93"
+        ).pack(anchor="w", padx=10)
+
+        tk.Label(
+            desc_frame, text=(getattr(trip, "description", "") or "---").upper(),
+            font=("Segoe UI", 9), bg=self.bg_button, fg=self.fg_text,
+            anchor="w", padx=10, pady=5, wraplength=600, justify="left"
+        ).pack(fill="x", padx=10, pady=2)
+
+        tk.Label(
+            scrollable_frame, text="Motoristas escalados", font=("Segoe UI", 10, "bold"),
+            bg=self.bg_main, fg=self.accent
         ).pack(pady=(10, 5))
 
-        drivers_frame = tk.Frame(self.parent, bg=self.bg_main)
-        drivers_frame.pack(padx=40, pady=5, fill="both", expand=True)
+        tree_container = tk.Frame(scrollable_frame, bg=self.bg_main)
+        tree_container.pack(padx=20, fill="x")
 
-        tree_frame = tk.Frame(drivers_frame, bg=self.bg_main)
-        tree_frame.pack(fill="both", expand=True)
-
-        tree_scroll = tk.Scrollbar(tree_frame)
-        tree_scroll.pack(side="right", fill="y")
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("Treeview", font=("Segoe UI", 9), rowheight=25,
+                        background="#2c2c2e", fieldbackground="#2c2c2e", foreground="#ffffff")
+        style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"),
+                        background="#3a3f47", foreground="#ffffff", borderwidth=1)
 
         self.tree_drivers = ttk.Treeview(
-            tree_frame,
-            columns=("Nome", "Contato", "Salário"),
-            show="headings",
-            yscrollcommand=tree_scroll.set,
-            height=8
+            tree_container, columns=("Nome", "Contato", "Salario"), show="headings", height=3
         )
-        tree_scroll.config(command=self.tree_drivers.yview)
-
         self.tree_drivers.heading("Nome", text="Nome")
         self.tree_drivers.heading("Contato", text="Contato")
-        self.tree_drivers.heading("Salário", text="Salário (R$)")
-
+        self.tree_drivers.heading("Salario", text="Salário (R$)")
         self.tree_drivers.column("Nome", width=250)
-        self.tree_drivers.column("Contato", width=200)
-        self.tree_drivers.column("Salário", width=150)
-
-        self.tree_drivers.pack(fill="both", expand=True)
+        self.tree_drivers.column("Contato", width=150)
+        self.tree_drivers.column("Salario", width=120)
+        self.tree_drivers.pack(fill="x")
 
         driver_ids = self.trip_driver_repo.get_driver_ids_by_trip(self.trip_id)
-        for driver_id in driver_ids:
-            driver = self.driver_repo.get_by_id(driver_id)
-            if driver:
-                self.tree_drivers.insert("", "end", values=(driver.name, driver.contact, f"R$ {driver.salary:.2f}"))
+        for d_id in driver_ids:
+            d = self.driver_repo.get_by_id(d_id)
+            if d:
+                self.tree_drivers.insert("", "end", values=(d.name.upper(), d.contact, f"{d.salary:.2f}"))
 
-        btn_voltar = ListRoundedButton(
-            self.parent,
-            text="Voltar",
-            command=self.voltar,
-            width=200,
-            height=50,
-            bg=self.bg_button,
-            fg=self.fg_text,
-            hover_bg=self.accent,
-            font=("Segoe UI", 11, "bold")
-        )
-        btn_voltar.pack(pady=25)
+        btn_container = tk.Frame(scrollable_frame, bg=self.bg_main)
+        btn_container.pack(fill="x", pady=15)
+
+        btns_inner = tk.Frame(btn_container, bg=self.bg_main)
+        btns_inner.pack(expand=True)
+
+        ListRoundedButton(
+            btns_inner, text="Voltar", command=self.voltar,
+            width=150, height=35, bg="#3a3f47", fg=self.fg_text
+        ).pack(side="left")
 
     def format_date(self, date_value):
+        if not date_value: return "---"
         if isinstance(date_value, str):
             try:
-                date_obj = datetime.strptime(date_value, "%Y-%m-%d")
-                return date_obj.strftime("%d/%m/%Y")
-            except ValueError:
+                return datetime.strptime(date_value, "%Y-%m-%d").strftime("%d/%m/%Y")
+            except:
                 return date_value
-        elif isinstance(date_value, datetime):
-            return date_value.strftime("%d/%m/%Y")
-        return str(date_value)
+        return date_value.strftime("%d/%m/%Y") if hasattr(date_value, "strftime") else str(date_value)
 
     def voltar(self):
         from app.interface.trip.interface_viagens import InterfaceViagem
-        interface = InterfaceViagem(self.parent, self.db_path)
-        interface.show()
+        InterfaceViagem(self.parent, self.db_path).show()

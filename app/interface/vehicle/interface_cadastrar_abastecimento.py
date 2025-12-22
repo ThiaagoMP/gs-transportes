@@ -1,8 +1,6 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 from datetime import datetime
-
 from app.repositories.refueling_repository import RefuelingRepository
 from app.models.refueling import Refueling
 from tkinter.filedialog import askopenfilename
@@ -70,157 +68,150 @@ class InterfaceAddRefueling:
         self.refueling_repo = RefuelingRepository(self.db_path)
 
         self.bg_main = "#1c1c1e"
+        self.bg_secondary = "#2c2c2e"
         self.bg_button = "#3a3f47"
         self.fg_text = "#ffffff"
         self.accent = "#ff7f32"
 
-        self.font_title = ("Segoe UI", 26, "bold")
-        self.font_label = ("Segoe UI", 14)
-        self.font_entry = ("Segoe UI", 12)
-        self.font_button = ("Segoe UI", 10)
+        self.font_title = ("Segoe UI", 24, "bold")
+        self.font_label = ("Segoe UI", 11, "bold")
+        self.font_entry = ("Segoe UI", 11)
+        self.font_button = ("Segoe UI", 10, "bold")
 
     @staticmethod
     def validate_input(P, field, max_length):
-        if not P:
-            return True
-        max_length = int(max_length)
-        clean_text = ''.join(c for c in P if c.isalnum() or c.isspace())
-        return len(clean_text) <= max_length
+        if not P: return True
+        return len(P) <= int(max_length)
 
     @staticmethod
     def validate_decimal(P):
-        if not P:
+        if not P: return True
+        P_mod = P.replace(',', '.')
+        try:
+            if P_mod in (".", "-"): return True
+            float(P_mod)
             return True
-        for c in P:
-            if not (c.isdigit() or c in ".,"):
-                return False
-        P = P.replace(',', '.')
-        if P.count('.') > 1:
+        except:
             return False
-        return True
 
     @staticmethod
     def validate_number(P):
-        if not P:
-            return True
-        return all(c.isdigit() for c in P)
+        return not P or P.isdigit()
 
     def show(self):
         for widget in self.parent.winfo_children():
             widget.destroy()
 
-        tk.Label(
-            self.parent,
-            text="Cadastrar Abastecimento",
-            font=self.font_title,
-            bg=self.bg_main,
-            fg=self.accent
-        ).pack(pady=25)
+        self.parent.configure(bg=self.bg_main)
 
-        main_frame = tk.Frame(self.parent, bg=self.bg_main, width=800)
-        main_frame.pack(padx=30, pady=10, anchor="center")
+        container = tk.Frame(self.parent, bg=self.bg_main)
+        container.pack(fill="both", expand=True)
+
+        canvas = tk.Canvas(container, bg=self.bg_main, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=self.bg_main)
+
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((self.parent.winfo_width() // 2, 0), window=scrollable_frame, anchor="n", width=700)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        tk.Label(scrollable_frame, text="Novo Abastecimento", font=self.font_title, bg=self.bg_main,
+                 fg=self.accent).pack(pady=(30, 20))
+
+        form_card = tk.Frame(scrollable_frame, bg=self.bg_secondary, padx=30, pady=30)
+        form_card.pack(fill="x", padx=40)
 
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("TLabel", font=self.font_label, background=self.bg_main, foreground=self.fg_text)
-        style.configure("TEntry", font=self.font_entry, padding=6, fieldbackground=self.bg_button,
-                        foreground=self.fg_text)
-        style.configure("TButton", font=self.font_button, padding=10,
-                        background=self.bg_button, foreground=self.fg_text)
-        style.map("TButton",
-                  background=[("active", self.accent)],
-                  foreground=[("active", self.fg_text)])
-        style.configure("Placeholder.TEntry", foreground="#7a7a7a")
+        style.configure("TLabel", font=self.font_label, background=self.bg_secondary, foreground=self.fg_text)
+        style.configure("TEntry", font=self.font_entry, fieldbackground=self.bg_button, foreground=self.fg_text,
+                        borderwidth=0)
+        style.configure("TCombobox", fieldbackground=self.bg_button, background=self.bg_button, foreground=self.fg_text)
+        style.configure("Placeholder.TEntry", foreground="#8e8e93")
 
-        validate_cmd = self.parent.register(InterfaceAddRefueling.validate_input)
-        validate_decimal = self.parent.register(InterfaceAddRefueling.validate_decimal)
-        validate_number = self.parent.register(InterfaceAddRefueling.validate_number)
+        v_input = self.parent.register(self.validate_input)
+        v_decimal = self.parent.register(self.validate_decimal)
+        v_num = self.parent.register(self.validate_number)
 
-        ttk.Label(main_frame, text="Preço por Litro (R$)*:").grid(row=0, column=0, sticky="e", padx=(0, 10), pady=10)
-        price_per_liter_entry = ttk.Entry(main_frame, width=64, validate="key",
-                                          validatecommand=(validate_decimal, "%P"))
-        price_per_liter_entry.grid(row=0, column=1, sticky="w", padx=(0, 10), pady=10)
-        add_placeholder(price_per_liter_entry, "Ex.: 5.50")
+        fields_frame = tk.Frame(form_card, bg=self.bg_secondary)
+        fields_frame.pack(fill="x")
+        fields_frame.columnconfigure(1, weight=1)
 
-        ttk.Label(main_frame, text="Litros*:").grid(row=1, column=0, sticky="e", padx=(0, 10), pady=10)
-        liters_entry = ttk.Entry(main_frame, width=64, validate="key",
-                                 validatecommand=(validate_number, "%P"))
-        liters_entry.grid(row=1, column=1, sticky="w", padx=(0, 10), pady=10)
-        add_placeholder(liters_entry, "Ex.: 50")
+        def add_row(label, row):
+            ttk.Label(fields_frame, text=label).grid(row=row, column=0, sticky="w", pady=10, padx=(0, 20))
 
-        ttk.Label(main_frame, text="Km rodado*:").grid(row=2, column=0, sticky="e", padx=(0, 10), pady=10)
-        km_traveled_entry = ttk.Entry(main_frame, width=64, validate="key",
-                                      validatecommand=(validate_number, "%P"))
-        km_traveled_entry.grid(row=2, column=1, sticky="w", padx=(0, 10), pady=10)
-        add_placeholder(km_traveled_entry, "Ex.: 10000")
+        add_row("Preço por Litro (R$)*:", 0)
+        price_per_liter_entry = ttk.Entry(fields_frame, validate="key", validatecommand=(v_decimal, "%P"))
+        price_per_liter_entry.grid(row=0, column=1, sticky="ew", pady=10)
+        add_placeholder(price_per_liter_entry, "Ex.: 5.89")
 
-        ttk.Label(main_frame, text="Posto:").grid(row=3, column=0, sticky="e", padx=(0, 10), pady=10)
-        posto_entry = ttk.Entry(main_frame, width=64, validate="key",
-                                validatecommand=(validate_cmd, "%P", "posto", 100))
-        posto_entry.grid(row=3, column=1, sticky="w", padx=(0, 10), pady=10)
-        add_placeholder(posto_entry, "Ex.: Posto XYZ")
+        add_row("Litros abastecidos*:", 1)
+        liters_entry = ttk.Entry(fields_frame, validate="key", validatecommand=(v_num, "%P"))
+        liters_entry.grid(row=1, column=1, sticky="ew", pady=10)
+        add_placeholder(liters_entry, "Ex.: 45")
 
-        ttk.Label(main_frame, text="Tipo de Combustível*:").grid(row=4, column=0, sticky="e", padx=(0, 10), pady=10)
+        add_row("Km atual do veículo*:", 2)
+        km_traveled_entry = ttk.Entry(fields_frame, validate="key", validatecommand=(v_num, "%P"))
+        km_traveled_entry.grid(row=2, column=1, sticky="ew", pady=10)
+        add_placeholder(km_traveled_entry, "Ex.: 12500")
+
+        add_row("Posto de Combustível:", 3)
+        posto_entry = ttk.Entry(fields_frame, validate="key", validatecommand=(v_input, "%P", "posto", 100))
+        posto_entry.grid(row=3, column=1, sticky="ew", pady=10)
+        add_placeholder(posto_entry, "Ex.: Posto Shell Ipiranga")
+
+        add_row("Tipo de Combustível*:", 4)
         fuel_type_var = tk.StringVar(value="Diesel")
-        fuel_type_combobox = ttk.Combobox(main_frame, textvariable=fuel_type_var, values=[
-            "Diesel",
-            "Diesel S10",
-            "Gasolina comum",
-            "Gasolina aditivada",
-            "GNV",
-            "Biodiesel",
-            "Elétrico",
-            "Híbridos"
-        ], state="readonly", width=55, font=self.font_entry)
-        fuel_type_combobox.grid(row=4, column=1, sticky="w", padx=(0, 10), pady=10)
+        fuel_combo = ttk.Combobox(fields_frame, textvariable=fuel_type_var, values=[
+            "Diesel", "Diesel S10", "Gasolina comum", "Gasolina aditivada",
+            "GNV", "Biodiesel", "Elétrico", "Híbridos"
+        ], state="readonly", font=self.font_entry)
+        fuel_combo.grid(row=4, column=1, sticky="ew", pady=10)
 
-        ttk.Label(main_frame, text="Descrição:").grid(row=5, column=0, sticky="e", padx=(0, 10), pady=10)
-        description_entry = ttk.Entry(main_frame, width=64, validate="key",
-                                      validatecommand=(validate_cmd, "%P", "description", 255))
-        description_entry.grid(row=5, column=1, sticky="w", padx=(0, 10), pady=10)
-        add_placeholder(description_entry, "Ex.: Abastecimento noturno")
-
-        ttk.Label(main_frame, text="Data de Abastecimento*:").grid(row=6, column=0, sticky="e", padx=(0, 10), pady=10)
-        date_frame = tk.Frame(main_frame, bg=self.bg_main)
-        date_frame.grid(row=6, column=1, sticky="w", padx=(0, 10), pady=10)
-        refueling_date_entry = tk.Entry(date_frame, width=55, font=self.font_entry, bg=self.bg_button, fg=self.fg_text,
-                                        insertbackground=self.fg_text)
-        refueling_date_entry.pack(side="left", padx=5)
+        add_row("Data do Registro*:", 5)
+        d_frame = tk.Frame(fields_frame, bg=self.bg_secondary)
+        d_frame.grid(row=5, column=1, sticky="ew", pady=10)
+        refueling_date_entry = tk.Entry(d_frame, font=self.font_entry, bg=self.bg_button, fg=self.fg_text,
+                                        borderwidth=0, insertbackground=self.fg_text)
+        refueling_date_entry.pack(side="left", fill="x", expand=True, ipady=5)
         refueling_date_entry.insert(0, datetime.now().strftime('%d/%m/%Y'))
-        ListRoundedButton(date_frame, text="Selecionar Data", command=lambda: self.open_calendar(refueling_date_entry),
-                          bg=self.bg_button, fg=self.fg_text, font=self.font_button).pack(side="left", padx=5)
+        ListRoundedButton(d_frame, text="Data", command=lambda: self.open_calendar(refueling_date_entry), width=50,
+                          height=42, bg=self.accent, fg=self.fg_text).pack(side="left", padx=(10, 0))
 
-        ttk.Label(main_frame, text="Comprovante:").grid(row=7, column=0, sticky="e", padx=(0, 10), pady=10)
-        receipt_frame = tk.Frame(main_frame, bg=self.bg_main)
-        receipt_frame.grid(row=7, column=1, sticky="w", padx=(0, 10), pady=10)
-        receipt_path_entry = ttk.Entry(receipt_frame, width=55, state="readonly", font=self.font_entry)
-        receipt_path_entry.grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        ListRoundedButton(receipt_frame, text="Selecionar", command=lambda: self.select_file(receipt_path_entry),
-                          bg=self.bg_button, fg=self.fg_text, font=self.font_button).grid(row=0, column=1, padx=5,
-                                                                                          pady=5)
+        add_row("Descrição:", 6)
+        description_entry = ttk.Entry(fields_frame, validate="key", validatecommand=(v_input, "%P", "desc", 255))
+        description_entry.grid(row=6, column=1, sticky="ew", pady=10)
+        add_placeholder(description_entry, "Ex.: Viagem para São Paulo")
 
-        button_frame = tk.Frame(main_frame, bg=self.bg_main)
-        button_frame.grid(row=8, column=0, columnspan=2, pady=20)
+        add_row("Comprovante:", 7)
+        rcp_f = tk.Frame(fields_frame, bg=self.bg_secondary)
+        rcp_f.grid(row=7, column=1, sticky="ew", pady=10)
+        receipt_path_entry = ttk.Entry(rcp_f, state="readonly")
+        receipt_path_entry.pack(side="left", fill="x", expand=True)
+        ListRoundedButton(rcp_f, text="Anexar", command=lambda: self.select_file(receipt_path_entry), width=80,
+                          height=32, bg=self.bg_button, fg=self.fg_text).pack(side="left", padx=(10, 0))
 
-        ListRoundedButton(
-            button_frame,
-            text="Salvar",
-            command=lambda: self.save_refueling(
-                price_per_liter_entry, liters_entry, km_traveled_entry, posto_entry, fuel_type_combobox,
-                description_entry, refueling_date_entry, receipt_path_entry
-            ),
-            bg=self.bg_button, fg=self.fg_text, font=self.font_button
-        ).pack(side="left", padx=5)
+        btns_f = tk.Frame(scrollable_frame, bg=self.bg_main)
+        btns_f.pack(pady=40)
 
-        ListRoundedButton(
-            button_frame,
-            text="Voltar",
-            command=self.back,
-            bg=self.bg_button, fg=self.fg_text, font=self.font_button
-        ).pack(side="left", padx=5)
+        ListRoundedButton(btns_f, text="Salvar", command=lambda: self.save_refueling(
+            price_per_liter_entry, liters_entry, km_traveled_entry, posto_entry, fuel_combo,
+            description_entry, refueling_date_entry, receipt_path_entry
+        ), width=180, height=45, bg=self.accent, fg=self.fg_text, font=self.font_button).pack(side="left", padx=10)
 
-        ttk.Label(main_frame, text="* Campos obrigatórios", font=("Segoe UI", 12, "italic"),
-                  foreground=self.fg_text).grid(row=9, column=0, columnspan=2, pady=15)
+        ListRoundedButton(btns_f, text="Voltar", command=self.back, width=180, height=45, bg=self.bg_secondary,
+                          fg=self.fg_text, font=self.font_button).pack(side="left", padx=10)
+
+        ttk.Label(scrollable_frame, text="* Campos obrigatórios", font=("Segoe UI", 10, "italic"), foreground="#aaaaaa",
+                  background=self.bg_main).pack(pady=(0, 20))
 
     def open_calendar(self, date_entry):
         def callback(selected_date):
@@ -230,69 +221,45 @@ class InterfaceAddRefueling:
         CustomCalendar(self.parent, callback=callback, initial_date=datetime.now().date())
 
     def select_file(self, receipt_path_entry):
-        file_path = askopenfilename(filetypes=[("PDF", "*.pdf"), ("JPEG", "*.jpg"), ("PNG", "*.png")], )
+        file_path = askopenfilename(filetypes=[("Arquivos de Imagem/PDF", "*.pdf *.jpg *.jpeg *.png")])
         if file_path:
             receipt_path_entry.config(state="normal")
             receipt_path_entry.delete(0, tk.END)
             receipt_path_entry.insert(0, file_path)
             receipt_path_entry.config(state="readonly")
 
-    def save_refueling(self, price_per_liter_entry, liters_entry, km_traveled_entry, posto_entry, fuel_type_combobox,
+    def save_refueling(self, price_per_liter_entry, liters_entry, km_traveled_entry, posto_entry, fuel_combo,
                        description_entry, refueling_date_entry, receipt_path_entry):
         price_per_liter = get_entry_value(price_per_liter_entry).replace(',', '.')
         liters = get_entry_value(liters_entry)
         km_traveled = get_entry_value(km_traveled_entry)
         posto = get_entry_value(posto_entry)
-        fuel_type = fuel_type_combobox.get()
+        fuel_type = fuel_combo.get()
         description = get_entry_value(description_entry)
         refueling_date = refueling_date_entry.get().strip()
         receipt_path = receipt_path_entry.get().strip()
 
         if not all([price_per_liter, liters, km_traveled, refueling_date, fuel_type]):
-            messagebox.showerror("Erro", "Preencha todos os campos obrigatórios.")
+            messagebox.showerror("Atenção", "Por favor, preencha todos os campos obrigatórios (*).")
             return
-        if len(posto) > 100:
-            messagebox.showerror("Erro", "Posto deve ter no máximo 100 caracteres.")
-            return
-        if len(description) > 255:
-            messagebox.showerror("Erro", "Descrição deve ter no máximo 255 caracteres.")
-            return
-        if not liters.isdigit():
-            messagebox.showerror("Erro", "Litros deve ser um número válido.")
-            return
-        if not km_traveled.isdigit():
-            messagebox.showerror("Erro", "Quilometragem deve ser um número válido.")
-            return
-
-        print("ola")
 
         try:
-            price_per_liter = float(price_per_liter)
-            liters = int(liters)
-            km_traveled = int(km_traveled)
-            refueling_date_obj = datetime.strptime(refueling_date, '%d/%m/%Y')
-            refueling_date_sql = refueling_date_obj.strftime('%Y-%m-%d')
+            date_obj = datetime.strptime(refueling_date, '%d/%m/%Y')
 
             receipt = None
             if receipt_path:
-                try:
-                    with open(receipt_path, 'rb') as f:
-                        receipt = sqlite3.Binary(f.read())
-                except Exception as e:
-                    messagebox.showerror("Erro", f"Falha ao ler o comprovante: {str(e)}")
-                    return
+                with open(receipt_path, 'rb') as f:
+                    receipt = sqlite3.Binary(f.read())
 
-            refueling = Refueling(None, self.vehicle_id, price_per_liter, liters, km_traveled, description, refueling_date_sql,
-                fuel_type,
-                receipt, posto
+            refueling = Refueling(
+                None, self.vehicle_id, float(price_per_liter), int(liters), int(km_traveled),
+                description, date_obj.strftime('%Y-%m-%d'), fuel_type, receipt, posto
             )
             self.refueling_repo.add(refueling)
-            messagebox.showinfo("Sucesso", "Abastecimento cadastrado com sucesso!")
+            messagebox.showinfo("Sucesso", "Abastecimento registrado com sucesso!")
             self.back()
-        except ValueError as e:
-            messagebox.showerror("Erro", f"Erro ao salvar: {str(e)}")
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao cadastrar abastecimento: {str(e)}")
+            messagebox.showerror("Erro", f"Falha ao salvar: {str(e)}")
 
     def back(self):
         from app.interface.vehicle.interface_abastecimento import InterfaceFueling

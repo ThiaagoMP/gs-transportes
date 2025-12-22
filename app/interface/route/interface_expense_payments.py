@@ -6,7 +6,6 @@ from app.components.list_rounded_button import ListRoundedButton
 from app.interface.route.interface_adicionar_despesa_extra import InterfaceAddExpensePayment
 from app.repositories.route_expense_payment_repository import RouteExpensePaymentRepository
 
-
 class InterfaceRouteExpensePayments:
     def __init__(self, parent, db_path, route_id, route_name):
         self.parent = parent
@@ -17,6 +16,7 @@ class InterfaceRouteExpensePayments:
 
         self.bg_main = "#1c1c1e"
         self.bg_button = "#3a3f47"
+        self.bg_field = "#2c2c2e"
         self.fg_text = "#ffffff"
         self.accent = "#ff7f32"
 
@@ -26,52 +26,56 @@ class InterfaceRouteExpensePayments:
 
         self.parent.configure(bg=self.bg_main)
 
+        header_frame = tk.Frame(self.parent, bg=self.bg_main)
+        header_frame.pack(pady=(15, 5), padx=20, fill="x")
+
         tk.Label(
-            self.parent,
-            text=f"Pagamentos de Despesas de {self.route_name}",
-            font=("Segoe UI", 24, "bold"),
+            header_frame,
+            text=f"PAGAMENTOS DE DESPESAS: {self.route_name.upper()}",
+            font=("Segoe UI", 18, "bold"),
             bg=self.bg_main,
             fg=self.accent,
             anchor="w"
-        ).pack(pady=(20, 10), padx=25, fill="x")
+        ).pack(side="left")
 
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
-        main_frame.pack(padx=30, pady=10, fill="both", expand=True)
+        main_frame.pack(padx=20, pady=5, fill="both", expand=True)
 
         tree_container = tk.Frame(main_frame, bg=self.bg_main)
-        tree_container.pack(fill="both", expand=True, padx=10, pady=10)
+        tree_container.pack(fill="both", expand=True, padx=5, pady=5)
 
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("Treeview",
-                        font=("Segoe UI", 12),
-                        background=self.bg_main,
-                        fieldbackground=self.bg_main,
-                        foreground=self.fg_text)
+                        font=("Segoe UI", 10),
+                        rowheight=28,
+                        background=self.bg_field,
+                        fieldbackground=self.bg_field,
+                        foreground=self.fg_text,
+                        borderwidth=0)
         style.configure("Treeview.Heading",
-                        font=("Segoe UI", 13, "bold"),
+                        font=("Segoe UI", 10, "bold"),
                         background=self.accent,
-                        foreground="#ffffff")
+                        foreground="#ffffff",
+                        borderwidth=1)
         style.map("Treeview",
-                  background=[("selected", "#333333")],
+                  background=[("selected", self.accent)],
                   foreground=[("selected", "#ffffff")])
 
         self.tree = ttk.Treeview(
             tree_container,
-            columns=("Data", "Valor", "Descrição"),
+            columns=("Data", "Valor", "Descricao"),
             show="headings",
-            height=15
+            height=12
         )
 
-        col_defs = [
-            ("Data", 150, False),
-            ("Valor", 150, False),
-            ("Descrição", 150, True),
-        ]
+        self.tree.heading("Data", text="DATA")
+        self.tree.heading("Valor", text="VALOR (R$)")
+        self.tree.heading("Descricao", text="DESCRIÇÃO")
 
-        for col, width, stretch in col_defs:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=width, stretch=stretch)
+        self.tree.column("Data", width=120, anchor="center", stretch=False)
+        self.tree.column("Valor", width=120, anchor="e", stretch=False)
+        self.tree.column("Descricao", width=300, anchor="w", stretch=True)
 
         scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
         scrollbar.pack(side="right", fill="y")
@@ -80,128 +84,99 @@ class InterfaceRouteExpensePayments:
         self.tree.pack(side="left", fill="both", expand=True)
 
         button_frame = tk.Frame(main_frame, bg=self.bg_main)
-        button_frame.pack(pady=10)
+        button_frame.pack(pady=15, fill="x")
 
-        actions = [
-            ("Adicionar Pagamento", self.adicionar_pagamento_despesa),
-            ("Baixar Comprovante", self.baixar_comprovante),
-            ("Voltar", self.back),
-            ("Excluir Pagamento", self.excluir_pagamento_despesa),
+        inner_button_frame = tk.Frame(button_frame, bg=self.bg_main)
+        inner_button_frame.pack(anchor="center")
+
+        btns = [
+            ("Adicionar", self.adicionar_pagamento_despesa, self.bg_button),
+            ("Recibo", self.baixar_comprovante, self.bg_button),
+            ("Excluir", self.excluir_pagamento_despesa, "#b3261e"),
+            ("Voltar", self.back, self.bg_button)
         ]
 
-        for text, cmd in actions:
-            bg_color = "#f44336" if text.startswith("Excluir") else self.bg_button
-            btn = ListRoundedButton(
-                button_frame,
+        for text, cmd, color in btns:
+            ListRoundedButton(
+                inner_button_frame,
                 text=text,
                 command=cmd,
-                width=200,
-                height=45,
-                bg=bg_color,
+                width=140,
+                height=38,
+                bg=color,
                 fg=self.fg_text,
-                hover_bg=self.accent,
-                font=("Segoe UI", 11, "bold"),
-                shadow=True
-            )
-            btn.pack(side="left", padx=10, pady=6)
+                font=("Segoe UI", 9, "bold")
+            ).pack(side="left", padx=8)
 
         self.load_expense_payments()
 
     def load_expense_payments(self):
-        self.tree.delete(*self.tree.get_children())
-        all_expense_payments = self.expense_payment_repo.get_all()
-        route_expense_payments = [p for p in all_expense_payments if p.route_id == self.route_id]
+        for item in self.tree.get_children():
+            self.tree.delete(item)
 
-        route_expense_payments.sort(key=lambda p: p.payment_date, reverse=True)
+        all_payments = self.expense_payment_repo.get_all()
+        route_payments = [p for p in all_payments if p.route_id == self.route_id]
+        route_payments.sort(key=lambda p: str(p.payment_date), reverse=True)
 
-        for payment in route_expense_payments:
-            if isinstance(payment.payment_date, str):
+        for payment in route_payments:
+            p_date = payment.payment_date
+            if isinstance(p_date, str):
                 try:
-                    date_obj = datetime.strptime(payment.payment_date, '%Y-%m-%d')
-                    date_display = date_obj.strftime('%d/%m/%Y')
-                except ValueError:
-                    date_display = payment.payment_date
-            elif isinstance(payment.payment_date, datetime):
-                date_display = payment.payment_date.strftime('%d/%m/%Y')
+                    date_display = datetime.strptime(p_date, '%Y-%m-%d').strftime('%d/%m/%Y')
+                except:
+                    date_display = p_date
+            elif hasattr(p_date, "strftime"):
+                date_display = p_date.strftime('%d/%m/%Y')
             else:
-                date_display = str(payment.payment_date)
+                date_display = str(p_date)
 
             self.tree.insert("", "end", iid=str(payment.expense_payment_id), values=(
                 date_display,
-                f"{payment.amount:.2f}",
+                f"{float(payment.amount):.2f}",
                 payment.description or ""
             ))
 
     def adicionar_pagamento_despesa(self):
-        try:
-            interface = InterfaceAddExpensePayment(self.parent, self.db_path, self.route_id)
-            interface.show()
-        except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao adicionar pagamento de despesa: {str(e)}")
+        InterfaceAddExpensePayment(self.parent, self.db_path, self.route_id).show()
 
     def excluir_pagamento_despesa(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione um pagamento de despesa para excluir.")
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Selecione um item.")
             return
 
-        payment_id = int(selected_item[0])
-        if messagebox.askyesno("Confirmação", "Deseja realmente excluir este pagamento de despesa?"):
-            try:
-                if self.expense_payment_repo.delete(payment_id):
-                    messagebox.showinfo("Sucesso", "Pagamento de despesa excluído com sucesso!")
-                    self.load_expense_payments()
-                else:
-                    messagebox.showerror("Erro", "Falha ao excluir o pagamento de despesa.")
-            except Exception as e:
-                messagebox.showerror("Erro", f"Erro ao excluir pagamento de despesa: {str(e)}")
+        if messagebox.askyesno("Confirmação", "Excluir este pagamento?"):
+            if self.expense_payment_repo.delete(int(selected[0])):
+                self.load_expense_payments()
 
     def baixar_comprovante(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione um pagamento de despesa para baixar o comprovante.")
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Selecione um pagamento.")
             return
 
-        payment_id = int(selected_item[0])
-        payment = self.expense_payment_repo.get_by_id(payment_id)
-
+        payment = self.expense_payment_repo.get_by_id(int(selected[0]))
         if not payment or not payment.receipt:
-            messagebox.showinfo("Info", "Não há comprovante para este pagamento de despesa.")
+            messagebox.showinfo("Info", "Sem comprovante salvo.")
             return
 
         receipt_bytes = payment.receipt
-
-        if receipt_bytes[:4] == b"%PDF":
-            ext = ".pdf"
-        elif receipt_bytes[:2] == b"\xff\xd8":
-            ext = ".jpg"
-        elif receipt_bytes[:8] == b"\x89PNG\r\n\x1a\n":
-            ext = ".png"
-        else:
-            ext = ".bin"
-
-        nome_sanitizado = "".join(c for c in self.route_name if c.isalnum() or c in (' ', '_')).replace(" ", "_")
-        data_str = payment.payment_date.strftime("%d%m%Y") if hasattr(payment.payment_date, "strftime") else str(payment.payment_date)
-        initial_filename = f"comprovante_{nome_sanitizado}_{data_str}{ext}"
+        ext = ".bin"
+        if receipt_bytes.startswith(b"%PDF"): ext = ".pdf"
+        elif receipt_bytes.startswith(b"\xff\xd8"): ext = ".jpg"
+        elif receipt_bytes.startswith(b"\x89PNG"): ext = ".png"
 
         file_path = filedialog.asksaveasfilename(
             defaultextension=ext,
-            filetypes=[("PDF", "*.pdf"), ("PNG", "*.png"), ("JPEG", "*.jpg")],
-            initialfile=initial_filename,
-            title="Salvar Comprovante"
+            filetypes=[("Arquivos", f"*{ext}")],
+            initialfile=f"recibo_{payment.expense_payment_id}{ext}"
         )
 
-        if not file_path:
-            return
-
-        try:
+        if file_path:
             with open(file_path, "wb") as f:
                 f.write(receipt_bytes)
-            messagebox.showinfo("Sucesso", f"Comprovante salvo em:\n{file_path}")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Não foi possível salvar o arquivo: {str(e)}")
+            messagebox.showinfo("Sucesso", "Salvo.")
 
     def back(self):
         from app.interface.route.interface_linha import InterfaceLinha
-        interface = InterfaceLinha(self.parent, self.db_path)
-        interface.show()
+        InterfaceLinha(self.parent, self.db_path).show()

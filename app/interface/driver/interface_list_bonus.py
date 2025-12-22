@@ -6,7 +6,6 @@ from app.components.list_rounded_button import ListRoundedButton
 from app.repositories.driver_bonus_repository import DriverBonusRepository
 from app.interface.driver.interface_add_driver_bonus import InterfaceAddDriverBonus
 
-
 class InterfaceBonificacoesMotorista:
     def __init__(self, parent, db_path, driver_id, driver_name):
         self.parent = parent
@@ -27,183 +26,164 @@ class InterfaceBonificacoesMotorista:
 
         self.parent.configure(bg=self.bg_main)
 
+        header_frame = tk.Frame(self.parent, bg=self.bg_main)
+        header_frame.pack(fill="x", padx=20, pady=(15, 10))
+
         tk.Label(
-            self.parent,
-            text=f"Bonificações de {self.driver_name}",
-            font=("Segoe UI", 24, "bold"),
+            header_frame,
+            text=f"Bonificações: {self.driver_name.title()}",
+            font=("Segoe UI", 16, "bold"),
             bg=self.bg_main,
-            fg=self.accent,
-            anchor="w"
-        ).pack(pady=(20, 10), padx=25, fill="x")
+            fg=self.accent
+        ).pack(side="left")
 
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
-        main_frame.pack(padx=30, pady=10, fill="both", expand=True)
+        main_frame.pack(padx=20, pady=5, fill="both", expand=True)
 
         tree_container = tk.Frame(main_frame, bg=self.bg_main)
-        tree_container.pack(fill="both", expand=True, padx=10, pady=10)
+        tree_container.pack(fill="both", expand=True)
 
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("Treeview",
-                        font=("Segoe UI", 12),
-                        background=self.bg_main,
-                        fieldbackground=self.bg_main,
-                        foreground=self.fg_text)
+                        font=("Segoe UI", 10),
+                        rowheight=30,
+                        background="#2c2c2e",
+                        fieldbackground="#2c2c2e",
+                        foreground=self.fg_text,
+                        borderwidth=0)
         style.configure("Treeview.Heading",
-                        font=("Segoe UI", 13, "bold"),
+                        font=("Segoe UI", 10, "bold"),
                         background=self.accent,
-                        foreground="#ffffff")
+                        foreground="#ffffff",
+                        borderwidth=1)
         style.map("Treeview",
-                  background=[("selected", "#333333")],
+                  background=[("selected", self.accent)],
                   foreground=[("selected", "#ffffff")])
 
         self.tree = ttk.Treeview(
             tree_container,
-            columns=("Data", "Valor", "Descrição"),
-            show="headings",
-            height=15
+            columns=("Data", "Valor", "Descricao"),
+            show="headings"
         )
 
-        col_defs = [
-            ("Data", 150, False),
-            ("Valor", 150, False),
-            ("Descrição", 250, True),
-        ]
+        self.tree.heading("Data", text="Data")
+        self.tree.heading("Valor", text="Valor (R$)")
+        self.tree.heading("Descricao", text="Descrição")
 
-        for col, width, stretch in col_defs:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=width, stretch=stretch)
+        self.tree.column("Data", width=120, anchor="center")
+        self.tree.column("Valor", width=120, anchor="center")
+        self.tree.column("Descricao", width=400, anchor="w")
 
         scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
         scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=scrollbar.set)
-
         self.tree.pack(side="left", fill="both", expand=True)
 
-        button_frame = tk.Frame(main_frame, bg=self.bg_main)
-        button_frame.pack(pady=10)
+        button_frame = tk.Frame(self.parent, bg=self.bg_main)
+        button_frame.pack(side="bottom", pady=20)
 
         actions = [
-            ("Adicionar Bonificação", self.adicionar_bonus),
-            ("Baixar Comprovante", self.baixar_comprovante),
-            ("Voltar", self.back),
-            ("Excluir Bonificação", self.excluir_bonus)
+            ("Adicionar", self.adicionar_bonus),
+            ("Comprovante", self.baixar_comprovante),
+            ("Excluir", self.excluir_bonus),
+            ("Voltar", self.back)
         ]
 
         for text, cmd in actions:
-            bg_color = "#f44336" if text.startswith("Excluir") else self.bg_button
+            bg_color = "#b00020" if text == "Excluir" else self.bg_button
             btn = ListRoundedButton(
                 button_frame,
                 text=text,
                 command=cmd,
-                width=200,
-                height=45,
+                width=140,
+                height=38,
                 bg=bg_color,
-                fg=self.fg_text,
-                hover_bg=self.accent,
-                font=("Segoe UI", 11, "bold"),
-                shadow=True
+                fg=self.fg_text
             )
-            btn.pack(side="left", padx=10, pady=6)
+            btn.pack(side="left", padx=10)
 
         self.load_bonuses()
 
     def load_bonuses(self):
         self.tree.delete(*self.tree.get_children())
-        all_bonuses = self.bonus_repo.get_all()
-        driver_bonuses = [b for b in all_bonuses if b.driver_id == self.driver_id]
+        try:
+            all_bonuses = self.bonus_repo.get_all()
+            driver_bonuses = [b for b in all_bonuses if int(b.driver_id) == int(self.driver_id)]
+            driver_bonuses.sort(key=lambda b: str(b.bonus_date), reverse=True)
 
-        driver_bonuses.sort(key=lambda b: b.bonus_date, reverse=True)
+            for bonus in driver_bonuses:
+                date_val = bonus.bonus_date
+                if isinstance(date_val, str) and "-" in date_val:
+                    try:
+                        date_display = datetime.strptime(date_val, '%Y-%m-%d').strftime('%d/%m/%Y')
+                    except:
+                        date_display = date_val
+                elif hasattr(date_val, 'strftime'):
+                    date_display = date_val.strftime('%d/%m/%Y')
+                else:
+                    date_display = str(date_val)
 
-        for bonus in driver_bonuses:
-            if isinstance(bonus.bonus_date, str):
-                try:
-                    date_obj = datetime.strptime(bonus.bonus_date, '%Y-%m-%d')
-                    date_display = date_obj.strftime('%d/%m/%Y')
-                except ValueError:
-                    date_display = bonus.bonus_date
-            elif isinstance(bonus.bonus_date, datetime):
-                date_display = bonus.bonus_date.strftime('%d/%m/%Y')
-            else:
-                date_display = str(bonus.bonus_date)
-
-            self.tree.insert("", "end", iid=str(bonus.bonus_id), values=(
-                date_display,
-                f"{bonus.amount:.2f}",
-                bonus.description or ""
-            ))
+                self.tree.insert("", "end", iid=str(bonus.bonus_id), values=(
+                    date_display,
+                    f"R$ {float(bonus.amount):.2f}",
+                    (bonus.description or "").capitalize()
+                ))
+        except Exception:
+            pass
 
     def adicionar_bonus(self):
         try:
             interface = InterfaceAddDriverBonus(self.parent, self.db_path, self.driver_id, self.driver_name)
             interface.show()
-        except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao adicionar bonificação: {str(e)}")
+        except Exception:
+            messagebox.showerror("Erro", "Não foi possível abrir a tela.")
 
     def excluir_bonus(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione uma bonificação para excluir.")
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Selecione um registro.")
             return
 
-        bonus_id = int(selected_item[0])
-        if messagebox.askyesno("Confirmação", "Deseja realmente excluir esta bonificação?"):
+        if messagebox.askyesno("Confirmar", "Excluir esta bonificação?"):
             try:
-                if self.bonus_repo.delete(bonus_id):
-                    messagebox.showinfo("Sucesso", "Bonificação excluída com sucesso!")
+                if self.bonus_repo.delete(int(selected[0])):
+                    messagebox.showinfo("Sucesso", "Registro excluído.")
                     self.load_bonuses()
-                else:
-                    messagebox.showerror("Erro", "Falha ao excluir a bonificação.")
-            except Exception as e:
-                messagebox.showerror("Erro", f"Erro ao excluir bonificação: {str(e)}")
+            except Exception:
+                messagebox.showerror("Erro", "Falha ao excluir.")
 
     def baixar_comprovante(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione uma bonificação para baixar o comprovante.")
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Selecione um registro.")
             return
 
-        bonus_id = int(selected_item[0])
-        bonus = self.bonus_repo.get_by_id(bonus_id)
-
+        bonus = self.bonus_repo.get_by_id(int(selected[0]))
         if not bonus or not bonus.receipt:
-            messagebox.showinfo("Info", "Não há comprovante para esta bonificação.")
+            messagebox.showinfo("Informação", "Sem comprovante digitalizado.")
             return
 
         receipt_bytes = bonus.receipt
-
-        if receipt_bytes[:4] == b"%PDF":
-            ext = ".pdf"
-        elif receipt_bytes[:2] == b"\xff\xd8":
-            ext = ".jpg"
-        elif receipt_bytes[:8] == b"\x89PNG\r\n\x1a\n":
-            ext = ".png"
-        else:
-            ext = ".bin"
-
-        nome_sanitizado = "".join(c for c in self.driver_name if c.isalnum() or c in (' ', '_')).replace(" ", "_")
-        data_str = bonus.bonus_date.strftime("%d%m%Y") if hasattr(bonus.bonus_date, "strftime") else str(
-            bonus.bonus_date)
-        initial_filename = f"comprovante_{nome_sanitizado}_{data_str}{ext}"
+        ext = ".pdf"
+        if receipt_bytes[:2] == b"\xff\xd8": ext = ".jpg"
+        elif receipt_bytes[:8] == b"\x89PNG\r\n\x1a\n": ext = ".png"
 
         file_path = filedialog.asksaveasfilename(
             defaultextension=ext,
-            filetypes=[("PDF", "*.pdf"), ("JPEG", "*.jpg"), ("PNG", "*.png")],
-            initialfile=initial_filename,
-            title="Salvar Comprovante"
+            filetypes=[("PDF", "*.pdf"), ("Imagens", "*.jpg;*.png")],
+            initialfile=f"Bonus_{self.driver_id}_{selected[0]}",
+            title="Salvar arquivo"
         )
 
-        if not file_path:
-            return
-
-        try:
-            with open(file_path, "wb") as f:
-                f.write(receipt_bytes)
-            messagebox.showinfo("Sucesso", f"Comprovante salvo em:\n{file_path}")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Não foi possível salvar o arquivo: {str(e)}")
+        if file_path:
+            try:
+                with open(file_path, "wb") as f:
+                    f.write(receipt_bytes)
+                messagebox.showinfo("Sucesso", "Arquivo salvo.")
+            except Exception:
+                messagebox.showerror("Erro", "Falha ao salvar.")
 
     def back(self):
         from app.interface.driver.interface_list_drivers import InterfaceListDrivers
-        interface = InterfaceListDrivers(self.parent, self.db_path)
-        interface.show()
+        InterfaceListDrivers(self.parent, self.db_path).show()

@@ -15,6 +15,7 @@ class InterfacePagamentosAluno:
 
         self.bg_main = "#1c1c1e"
         self.bg_button = "#3a3f47"
+        self.bg_field = "#2c2c2e"
         self.fg_text = "#ffffff"
         self.accent = "#ff7f32"
 
@@ -26,90 +27,102 @@ class InterfacePagamentosAluno:
 
         tk.Label(
             self.parent,
-            text=f"Pagamentos de {self.student.name}",
-            font=("Segoe UI", 24, "bold"),
+            text=f"Pagamentos: {self.student.name.title()}",
+            font=("Segoe UI", 22, "bold"),
             bg=self.bg_main,
             fg=self.accent,
             anchor="w"
-        ).pack(pady=(20, 10), padx=25, fill="x")
+        ).pack(pady=(15, 5), padx=25, fill="x")
 
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
-        main_frame.pack(padx=30, pady=10, fill="both", expand=True)
+        main_frame.pack(padx=20, pady=5, fill="both", expand=True)
 
-        tree_container = tk.Frame(main_frame, bg=self.bg_main)
-        tree_container.pack(fill="both", expand=True, padx=10, pady=10)
+        list_frame = tk.Frame(main_frame, bg=self.bg_main)
+        list_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("Treeview",
-                        font=("Segoe UI", 12),
-                        background=self.bg_main,
-                        fieldbackground=self.bg_main,
-                        foreground=self.fg_text)
+                        font=("Segoe UI", 11),
+                        rowheight=28,
+                        background=self.bg_field,
+                        fieldbackground=self.bg_field,
+                        foreground=self.fg_text,
+                        borderwidth=0)
         style.configure("Treeview.Heading",
-                        font=("Segoe UI", 13, "bold"),
+                        font=("Segoe UI", 11, "bold"),
                         background=self.accent,
-                        foreground="#ffffff")
+                        foreground="#ffffff",
+                        borderwidth=1)
         style.map("Treeview",
-                  background=[("selected", "#333333")],
+                  background=[("selected", self.accent)],
                   foreground=[("selected", "#ffffff")])
+
+        tree_container = tk.Frame(list_frame, bg=self.bg_main)
+        tree_container.pack(fill="both", expand=True)
+        tree_container.grid_rowconfigure(0, weight=1)
+        tree_container.grid_columnconfigure(0, weight=1)
 
         self.tree = ttk.Treeview(
             tree_container,
             columns=("Data", "Valor", "Info Extra"),
             show="headings",
-            height=15
+            height=12
         )
 
         col_defs = [
-            ("Data", 150, False),
-            ("Valor", 150, False),
-            ("Info Extra", 250, True),
+            ("Data", 120),
+            ("Valor", 120),
+            ("Info Extra", 350),
         ]
 
-        for col, width, stretch in col_defs:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=width, stretch=stretch)
+        for col, width in col_defs:
+            self.tree.heading(col, text=col.upper())
+            self.tree.column(col, width=width, anchor="center")
 
-        scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
-        scrollbar.pack(side="right", fill="y")
-        self.tree.configure(yscrollcommand=scrollbar.set)
+        v_scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
+        h_scrollbar = ttk.Scrollbar(tree_container, orient="horizontal", command=self.tree.xview)
 
-        self.tree.pack(side="left", fill="both", expand=True)
+        self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
 
-        button_frame = tk.Frame(main_frame, bg=self.bg_main)
-        button_frame.pack(pady=10)
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        v_scrollbar.grid(row=0, column=1, sticky="ns")
+        h_scrollbar.grid(row=1, column=0, sticky="ew")
+
+        button_frame = tk.Frame(list_frame, bg=self.bg_main)
+        button_frame.pack(fill="x", pady=15)
+
+        btns_inner = tk.Frame(button_frame, bg=self.bg_main)
+        btns_inner.pack(expand=True)
 
         actions = [
-            ("Adicionar Pagamento", self.adicionar_pagamento),
-            ("Baixar Comprovante", self.baixar_comprovante),
+            ("Novo pagamento", self.adicionar_pagamento),
+            ("Baixar comprovante", self.baixar_comprovante),
             ("Voltar", self.back),
-            ("Excluir Pagamento", self.excluir_pagamento)
+            ("Excluir", self.excluir_pagamento)
         ]
 
         for text, cmd in actions:
-            bg_color = "#f44336" if text.startswith("Excluir") else self.bg_button
-            btn = ListRoundedButton(
-                button_frame,
+            bg_color = "#b3261e" if "Excluir" in text else self.bg_button
+            ListRoundedButton(
+                btns_inner,
                 text=text,
                 command=cmd,
-                width=200,
-                height=45,
+                width=180,
+                height=42,
                 bg=bg_color,
                 fg=self.fg_text,
-                hover_bg=self.accent,
-                font=("Segoe UI", 11, "bold"),
-                shadow=True
-            )
-            btn.pack(side="left", padx=10, pady=6)
+                font=("Segoe UI", 9, "bold")
+            ).pack(side="left", padx=8, pady=5)
 
         self.load_payments()
 
     def load_payments(self):
-        self.tree.delete(*self.tree.get_children())
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
         all_payments = self.payment_repo.get_all()
         student_payments = [p for p in all_payments if p.student_id == self.student.student_id]
-
         student_payments.sort(key=lambda p: p.payment_date, reverse=True)
 
         for payment in student_payments:
@@ -126,80 +139,63 @@ class InterfacePagamentosAluno:
 
             self.tree.insert("", "end", iid=str(payment.student_payment_id), values=(
                 date_display,
-                f"{payment.amount:.2f}",
+                f"R$ {payment.amount:.2f}",
                 payment.extra_info or ""
             ))
 
     def adicionar_pagamento(self):
-        try:
-            interface = InterfaceCadastrarPagamento(self.parent, self.db_path, self.student.student_id)
-            interface.show()
-        except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao adicionar pagamento: {str(e)}")
+        InterfaceCadastrarPagamento(self.parent, self.db_path, self.student.student_id).show()
 
     def excluir_pagamento(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione um pagamento para excluir.")
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Selecione um pagamento.")
             return
 
-        payment_id = int(selected_item[0])
-        if messagebox.askyesno("Confirmação", "Deseja realmente excluir este pagamento?"):
-            try:
-                if self.payment_repo.delete(payment_id):
-                    messagebox.showinfo("Sucesso", "Pagamento excluído com sucesso!")
-                    self.load_payments()
-                else:
-                    messagebox.showerror("Erro", "Falha ao excluir o pagamento.")
-            except Exception as e:
-                messagebox.showerror("Erro", f"Erro ao excluir pagamento: {str(e)}")
+        pid = int(selected[0])
+        if messagebox.askyesno("Confirmação", "Deseja excluir este pagamento?"):
+            if self.payment_repo.delete(pid):
+                messagebox.showinfo("Sucesso", "Pagamento excluído com sucesso.")
+                self.load_payments()
+            else:
+                messagebox.showerror("Erro", "Falha ao realizar a exclusão.")
 
     def baixar_comprovante(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione um pagamento para baixar o comprovante.")
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Selecione um pagamento.")
             return
 
-        payment_id = int(selected_item[0])
-        payment = self.payment_repo.get_by_id(payment_id)
-
+        payment = self.payment_repo.get_by_id(int(selected[0]))
         if not payment or not payment.receipt:
-            messagebox.showinfo("Info", "Não há comprovante para este pagamento.")
+            messagebox.showinfo("Informação", "Sem comprovante disponível para este registro.")
             return
 
         receipt_bytes = payment.receipt
-
+        ext = ".bin"
         if receipt_bytes[:4] == b"%PDF":
             ext = ".pdf"
         elif receipt_bytes[:2] == b"\xff\xd8":
             ext = ".jpg"
         elif receipt_bytes[:8] == b"\x89PNG\r\n\x1a\n":
             ext = ".png"
-        else:
-            ext = ".bin"
 
-        nome_sanitizado = "".join(c for c in self.student.name if c.isalnum() or c in (' ', '_')).replace(" ", "_")
-        data_str = payment.payment_date.strftime("%d%m%Y") if hasattr(payment.payment_date, "strftime") else str(payment.payment_date)
-        initial_filename = f"comprovante_{nome_sanitizado}_{data_str}{ext}"
-
+        name_clean = "".join(c for c in self.student.name if c.isalnum() or c in (' ', '_')).replace(" ", "_")
         file_path = filedialog.asksaveasfilename(
             defaultextension=ext,
-            filetypes=[("PDF", "*.pdf"), ("JPEG", "*.jpg"), ("PNG", "*.png")],
-            initialfile=initial_filename,
-            title="Salvar Comprovante"
+            filetypes=[("Documentos", "*.pdf *.jpg *.png")],
+            initialfile=f"comprovante_{name_clean}{ext}",
+            title="Salvar comprovante"
         )
 
-        if not file_path:
-            return
-
-        try:
-            with open(file_path, "wb") as f:
-                f.write(receipt_bytes)
-            messagebox.showinfo("Sucesso", f"Comprovante salvo em:\n{file_path}")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Não foi possível salvar o arquivo: {str(e)}")
+        if file_path:
+            try:
+                with open(file_path, "wb") as f:
+                    f.write(receipt_bytes)
+                messagebox.showinfo("Sucesso", "Comprovante salvo com sucesso.")
+            except Exception as e:
+                messagebox.showerror("Erro", f"Erro ao salvar: {str(e)}")
 
     def back(self):
         from app.interface.student.interface_aluno import InterfaceAluno
-        interface = InterfaceAluno(self.parent, self.db_path)
-        interface.show()
+        InterfaceAluno(self.parent, self.db_path).show()

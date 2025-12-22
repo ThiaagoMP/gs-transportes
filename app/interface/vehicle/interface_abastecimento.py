@@ -15,6 +15,7 @@ class InterfaceFueling:
         self.refueling_repo = RefuelingRepository(self.db_path)
 
         self.bg_main = "#1c1c1e"
+        self.bg_secondary = "#2c2c2e"
         self.bg_button = "#3a3f47"
         self.fg_text = "#ffffff"
         self.accent = "#ff7f32"
@@ -25,193 +26,167 @@ class InterfaceFueling:
 
         self.parent.configure(bg=self.bg_main)
 
+        header_frame = tk.Frame(self.parent, bg=self.bg_main)
+        header_frame.pack(fill="x", padx=20, pady=(15, 10))
+
         tk.Label(
-            self.parent,
-            text=f"Abastecimentos de {self.vehicle_name}",
-            font=("Segoe UI", 24, "bold"),
+            header_frame,
+            text=f"Abastecimentos: {self.vehicle_name.title()}",
+            font=("Segoe UI", 16, "bold"),
             bg=self.bg_main,
-            fg=self.accent,
-            anchor="w"
-        ).pack(pady=(20, 10), padx=25, fill="x")
+            fg=self.accent
+        ).pack(side="left")
 
-        main_frame = tk.Frame(self.parent, bg=self.bg_main)
-        main_frame.pack(padx=30, pady=10, fill="both", expand=True)
-
-        tree_container = tk.Frame(main_frame, bg=self.bg_main)
-        tree_container.pack(fill="both", expand=True, padx=10, pady=10)
+        content_frame = tk.Frame(self.parent, bg=self.bg_secondary)
+        content_frame.pack(fill="both", expand=True, padx=20, pady=5)
 
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("Treeview",
-                        font=("Segoe UI", 12),
-                        background=self.bg_main,
-                        fieldbackground=self.bg_main,
-                        foreground=self.fg_text)
+                        font=("Segoe UI", 10),
+                        rowheight=30,
+                        background=self.bg_secondary,
+                        fieldbackground=self.bg_secondary,
+                        foreground=self.fg_text,
+                        borderwidth=0)
         style.configure("Treeview.Heading",
-                        font=("Segoe UI", 13, "bold"),
+                        font=("Segoe UI", 10, "bold"),
                         background=self.accent,
-                        foreground="#ffffff")
+                        foreground=self.fg_text,
+                        borderwidth=1)
         style.map("Treeview",
-                  background=[("selected", "#333333")],
+                  background=[("selected", self.accent)],
                   foreground=[("selected", "#ffffff")])
+
+        tree_container = tk.Frame(content_frame, bg=self.bg_secondary)
+        tree_container.pack(fill="both", expand=True)
 
         self.tree = ttk.Treeview(
             tree_container,
-            columns=("Data", "Valor Total", "Litros", "Quilometragem", "Posto", "Combustível", "Descrição"),
+            columns=("Data", "Total", "Litros", "KM", "Posto", "Tipo", "Desc"),
             show="headings",
-            height=15
+            selectmode="browse"
         )
 
-        col_defs = [
-            ("Data", 150, False),
-            ("Valor Total", 150, False),
-            ("Litros", 150, False),
-            ("Quilometragem", 150, False),
-            ("Posto", 150, False),
-            ("Combustível", 150, False),
-            ("Descrição", 150, True),
-        ]
+        headers = {
+            "Data": ("Data", 90),
+            "Total": ("Valor", 90),
+            "Litros": ("Litros", 80),
+            "KM": ("KM", 90),
+            "Posto": ("Posto", 150),
+            "Tipo": ("Tipo", 110),
+            "Desc": ("Descrição", 180)
+        }
 
-        for col, width, stretch in col_defs:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=width, stretch=stretch)
+        for col, (text, width) in headers.items():
+            self.tree.heading(col, text=text)
+            self.tree.column(col, width=width, anchor="center" if col != "Desc" else "w")
 
         scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
-        scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=scrollbar.set)
 
         self.tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
-        button_frame = tk.Frame(main_frame, bg=self.bg_main)
-        button_frame.pack(pady=10)
+        actions_frame = tk.Frame(self.parent, bg=self.bg_main)
+        actions_frame.pack(fill="x", side="bottom", pady=20)
 
-        actions = [
-            ("Adicionar Abastecimento", self.adicionar_abastecimento),
-            ("Baixar Comprovante", self.baixar_comprovante),
-            ("Voltar", self.back),
-            ("Excluir Abastecimento", self.excluir_abastecimento)
+        buttons_container = tk.Frame(actions_frame, bg=self.bg_main)
+        buttons_container.pack(expand=True)
+
+        btn_config = [
+            ("Novo", self.adicionar_abastecimento, self.accent, 120),
+            ("Comprovante", self.baixar_comprovante, self.bg_button, 140),
+            ("Excluir", self.excluir_abastecimento, "#b00020", 120),
+            ("Voltar", self.back, self.bg_button, 120)
         ]
 
-        for text, cmd in actions:
-            bg_color = "#f44336" if text.startswith("Excluir") else self.bg_button
-            btn = ListRoundedButton(
-                button_frame,
+        for text, cmd, color, width in btn_config:
+            ListRoundedButton(
+                buttons_container,
                 text=text,
                 command=cmd,
-                width=200,
-                height=45,
-                bg=bg_color,
-                fg=self.fg_text,
-                hover_bg=self.accent,
-                font=("Segoe UI", 11, "bold"),
-                shadow=True
-            )
-            btn.pack(side="left", padx=10, pady=6)
+                width=width,
+                height=38,
+                bg=color,
+                fg=self.fg_text
+            ).pack(side="left", padx=10)
 
         self.load_refuelings()
 
     def load_refuelings(self):
         self.tree.delete(*self.tree.get_children())
-        vehicle_refuelings = self.refueling_repo.get_all_by_vehicle_id(self.vehicle_id)
+        try:
+            refuelings = self.refueling_repo.get_all_by_vehicle_id(self.vehicle_id)
+            refuelings.sort(key=lambda x: str(x.refueling_date), reverse=True)
 
-        def sort_key(r):
-            try:
-                if isinstance(r.refueling_date, str):
-                    return datetime.strptime(r.refueling_date, '%Y-%m-%d')
-                elif isinstance(r.refueling_date, datetime):
-                    return r.refueling_date
-                else:
-                    return datetime.min
-            except:
-                return datetime.min
+            for ref in refuelings:
+                date_val = ref.refueling_date
+                if isinstance(date_val, str):
+                    try:
+                        date_val = datetime.strptime(date_val, '%Y-%m-%d').strftime('%d/%m/%Y')
+                    except:
+                        pass
+                elif hasattr(date_val, 'strftime'):
+                    date_val = date_val.strftime('%d/%m/%Y')
 
-        vehicle_refuelings.sort(key=sort_key, reverse=True)
+                total = float(ref.price_per_liter) * float(ref.liters)
 
-        for refueling in vehicle_refuelings:
-            date_display = refueling.refueling_date.strftime('%d/%m/%Y') if isinstance(refueling.refueling_date, datetime) else str(refueling.refueling_date)
-            total_value = refueling.price_per_liter * refueling.liters
-
-            self.tree.insert("", "end", iid=str(refueling.refueling_id), values=(
-                date_display,
-                f"{total_value:.2f}",
-                f"{refueling.liters}",
-                f"{refueling.km_traveled:.0f}",
-                refueling.fuel_station,
-                refueling.fuel_type,
-                refueling.description or ""
-            ))
+                self.tree.insert("", "end", iid=str(ref.refueling_id), values=(
+                    date_val,
+                    f"R$ {total:.2f}",
+                    f"{ref.liters}L",
+                    f"{ref.km_traveled}",
+                    (ref.fuel_station or "-").title(),
+                    ref.fuel_type.capitalize(),
+                    (ref.description or "").capitalize()
+                ))
+        except Exception:
+            pass
 
     def adicionar_abastecimento(self):
-        try:
-            from app.interface.vehicle.interface_cadastrar_abastecimento import InterfaceAddRefueling
-            interface = InterfaceAddRefueling(self.parent, self.db_path, self.vehicle_id)
-            interface.show()
-        except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao adicionar abastecimento: {str(e)}")
+        from app.interface.vehicle.interface_cadastrar_abastecimento import InterfaceAddRefueling
+        InterfaceAddRefueling(self.parent, self.db_path, self.vehicle_id).show()
 
     def excluir_abastecimento(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione um abastecimento para excluir.")
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Selecione um registro.")
             return
 
-        refueling_id = int(selected_item[0])
-        if messagebox.askyesno("Confirmação", "Deseja realmente excluir este abastecimento?"):
-            try:
-                if self.refueling_repo.delete(refueling_id):
-                    messagebox.showinfo("Sucesso", "Abastecimento excluído com sucesso!")
-                    self.load_refuelings()
-                else:
-                    messagebox.showerror("Erro", "Falha ao excluir o abastecimento.")
-            except Exception as e:
-                messagebox.showerror("Erro", f"Erro ao excluir abastecimento: {str(e)}")
+        if messagebox.askyesno("Confirmar", "Deseja excluir este registro?"):
+            if self.refueling_repo.delete(int(selected[0])):
+                self.load_refuelings()
+                messagebox.showinfo("Sucesso", "Registro removido com sucesso.")
 
     def baixar_comprovante(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione um abastecimento para baixar o comprovante.")
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Selecione um registro.")
             return
 
-        refueling_id = int(selected_item[0])
-        refueling = self.refueling_repo.get_by_id(refueling_id)
-
-        if not refueling or not refueling.receipt:
-            messagebox.showinfo("Info", "Não há comprovante para este abastecimento.")
+        ref = self.refueling_repo.get_by_id(int(selected[0]))
+        if not ref or not ref.receipt:
+            messagebox.showinfo("Informação", "Sem comprovante anexo.")
             return
 
-        receipt_bytes = refueling.receipt
+        ext = ".pdf" if ref.receipt.startswith(b"%PDF") else ".jpg"
 
-        if receipt_bytes[:4] == b"%PDF":
-            ext = ".pdf"
-        elif receipt_bytes[:2] == b"\xff\xd8":
-            ext = ".jpg"
-        elif receipt_bytes[:8] == b"\x89PNG\r\n\x1a\n":
-            ext = ".png"
-        else:
-            ext = ".bin"
-
-        nome_sanitizado = "".join(c for c in self.vehicle_name if c.isalnum() or c in (' ', '_')).replace(" ", "_")
-        data_str = refueling.refueling_date.strftime("%d%m%Y") if hasattr(refueling.refueling_date, "strftime") else str(refueling.refueling_date)
-        initial_filename = f"comprovante_{nome_sanitizado}_{data_str}{ext}"
-
-        file_path = filedialog.asksaveasfilename(
+        path = filedialog.asksaveasfilename(
             defaultextension=ext,
-            filetypes=[("PDF", "*.pdf"), ("PNG", "*.png"), ("JPEG", "*.jpg")],
-            initialfile=initial_filename,
-            title="Salvar Comprovante"
+            initialfile=f"Comprovante_{self.vehicle_id}_{selected[0]}",
+            title="Salvar comprovante"
         )
 
-        if not file_path:
-            return
-
-        try:
-            with open(file_path, "wb") as f:
-                f.write(receipt_bytes)
-            messagebox.showinfo("Sucesso", f"Comprovante salvo em:\n{file_path}")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Não foi possível salvar o arquivo: {str(e)}")
+        if path:
+            try:
+                with open(path, "wb") as f:
+                    f.write(ref.receipt)
+                messagebox.showinfo("Sucesso", "Arquivo salvo com sucesso.")
+            except Exception:
+                messagebox.showerror("Erro", "Falha ao salvar o arquivo.")
 
     def back(self):
         from app.interface.vehicle.interface_veiculo import InterfaceListVehicles
-        interface = InterfaceListVehicles(self.parent, self.db_path)
-        interface.show()
+        InterfaceListVehicles(self.parent, self.db_path).show()
+

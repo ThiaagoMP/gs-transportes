@@ -8,6 +8,7 @@ from app.repositories.vehicle_repository import VehicleRepository
 from app.repositories.trip_repository import TripRepository
 from app.repositories.maintenance_repository import MaintenanceRepository
 
+
 class InterfaceVehicleDetails:
     def __init__(self, parent, db_path, vehicle_id):
         self.parent = parent
@@ -20,8 +21,10 @@ class InterfaceVehicleDetails:
         self.vehicle = self.vehicle_repo.get_by_id(vehicle_id)
 
         self.bg_main = "#1c1c1e"
+        self.bg_card = "#2c2c2e"
         self.bg_button = "#3a3f47"
         self.fg_text = "#ffffff"
+        self.fg_dim = "#aaaaaa"
         self.accent = "#ff7f32"
 
     def show(self):
@@ -30,134 +33,119 @@ class InterfaceVehicleDetails:
 
         self.parent.configure(bg=self.bg_main)
 
-        tk.Label(
-            self.parent,
-            text="Detalhes do Veículo",
-            font=("Segoe UI", 26, "bold"),
-            bg=self.bg_main,
-            fg=self.accent
-        ).pack(pady=(20, 10))
+        # Header
+        header = tk.Frame(self.parent, bg=self.bg_main)
+        header.pack(fill="x", padx=30, pady=(20, 10))
 
+        tk.Label(header, text=f"Detalhes: {self.vehicle.name}", font=("Segoe UI", 22, "bold"),
+                 bg=self.bg_main, fg=self.accent).pack(side="left")
+
+        ListRoundedButton(header, text="Voltar", command=self.voltar, width=100, height=35,
+                          bg=self.bg_button, fg=self.fg_text).pack(side="right")
+
+        # Scrollable Area
         container = tk.Frame(self.parent, bg=self.bg_main)
-        container.pack(padx=40, pady=10, fill="both", expand=True)
+        container.pack(fill="both", expand=True, padx=20)
 
         canvas = tk.Canvas(container, bg=self.bg_main, highlightthickness=0)
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg=self.bg_main)
+        self.scrollable_frame = tk.Frame(canvas, bg=self.bg_main)
 
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        self.scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas_window = canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        def _resize_canvas(event):
+            canvas.itemconfig(canvas_window, width=event.width)
+
+        canvas.bind("<Configure>", _resize_canvas)
+
         canvas.configure(yscrollcommand=scrollbar.set)
-
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
+        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
 
-        buy_date = self.format_date(self.vehicle.buy_date)
-        sell_date = self.format_date(self.vehicle.sell_date) if self.vehicle.sell_date else "-"
+        self.render_content()
 
-        viagens_total = self.trip_repo.count_trips_by_vehicle(self.vehicle.vehicle_id, period="total")
-        viagens_ano = self.trip_repo.count_trips_by_vehicle(self.vehicle.vehicle_id, period="year")
-        viagens_mes = self.trip_repo.count_trips_by_vehicle(self.vehicle.vehicle_id, period="month")
+    def create_card(self, parent, title, data_dict, row, col):
+        card = tk.Frame(parent, bg=self.bg_card, padx=15, pady=15, highlightthickness=1, highlightbackground="#3a3f47")
+        card.grid(row=row, column=col, sticky="nsew", padx=10, pady=10)
 
-        abastecimentos_total = self.fuel_repo.count_by_vehicle(self.vehicle.vehicle_id, period="total")
-        abastecimentos_ano = self.fuel_repo.count_by_vehicle(self.vehicle.vehicle_id, period="year")
-        abastecimentos_mes = self.fuel_repo.count_by_vehicle(self.vehicle.vehicle_id, period="month")
+        tk.Label(card, text=title, font=("Segoe UI", 13, "bold"), bg=self.bg_card, fg=self.accent).pack(anchor="w",
+                                                                                                        pady=(0, 10))
 
-        manut_total = self.maintenance_repo.count_by_vehicle(self.vehicle.vehicle_id, period="total")
-        manut_ano = self.maintenance_repo.count_by_vehicle(self.vehicle.vehicle_id, period="year")
-        manut_mes = self.maintenance_repo.count_by_vehicle(self.vehicle.vehicle_id, period="month")
+        for label, value in data_dict.items():
+            row_f = tk.Frame(card, bg=self.bg_card)
+            row_f.pack(fill="x", pady=2)
+            tk.Label(row_f, text=label, font=("Segoe UI", 10), bg=self.bg_card, fg=self.fg_dim).pack(side="left")
+            tk.Label(row_f, text=value, font=("Segoe UI", 10, "bold"), bg=self.bg_card, fg=self.fg_text).pack(
+                side="right")
+        return card
 
-        linhas_atuais = self.route_repo.count_routes_by_vehicle(self.vehicle.vehicle_id)
+    def render_content(self):
+        v = self.vehicle
+        id = v.vehicle_id
 
-        valor_abast_total = self.fuel_repo.sum_cost_by_vehicle(self.vehicle.vehicle_id, "total")
-        valor_abast_ano = self.fuel_repo.sum_cost_by_vehicle(self.vehicle.vehicle_id, "year")
-        valor_abast_mes = self.fuel_repo.sum_cost_by_vehicle(self.vehicle.vehicle_id, "month")
+        # Grid layout para cards
+        self.scrollable_frame.columnconfigure((0, 1), weight=1)
 
-        valor_manut_total = self.maintenance_repo.sum_cost_by_vehicle(self.vehicle.vehicle_id, "total")
-        valor_manut_ano = self.maintenance_repo.sum_cost_by_vehicle(self.vehicle.vehicle_id, "year")
-        valor_manut_mes = self.maintenance_repo.sum_cost_by_vehicle(self.vehicle.vehicle_id, "month")
-
-        lucro_total = self.vehicle_repo.get_vehicle_profit(self.vehicle.vehicle_id, "total")
-        lucro_ano = self.vehicle_repo.get_vehicle_profit(self.vehicle.vehicle_id, "year")
-        lucro_mes = self.vehicle_repo.get_vehicle_profit(self.vehicle.vehicle_id, "month")
-
-        detalhes = {
-            "Nome": self.vehicle.name,
-            "Placa": self.vehicle.license_plate,
-            "Quantidade de Assentos": str(self.vehicle.seats),
-            "Média km/L": str(self.vehicle.avg_km_per_liter),
-            "Tamanho do Tanque (L)": str(self.vehicle.fuel_tank_size),
-            "Data de Compra": buy_date,
-            "Data de Venda": sell_date,
-            "Quantidade de viagens feitas (Total)": str(viagens_total),
-            "Quantidade de viagens feitas (Ano)": str(viagens_ano),
-            "Quantidade de viagens feitas (Mês)": str(viagens_mes),
-            "Quantidade de abastecimentos feitos (Total)": str(abastecimentos_total),
-            "Quantidade de abastecimentos feitos (Ano)": str(abastecimentos_ano),
-            "Quantidade de abastecimentos feitos (Mês)": str(abastecimentos_mes),
-            "Quantidade de manutenções feitas (Total)": str(manut_total),
-            "Quantidade de manutenções feitas (Ano)": str(manut_ano),
-            "Quantidade de manutenções feitas (Mês)": str(manut_mes),
-            "Quantidade de linhas atuais": str(linhas_atuais),
-            "Valor de abastecimentos (Total)": str(valor_abast_total),
-            "Valor de abastecimentos (Ano)": str(valor_abast_ano),
-            "Valor de abastecimentos (Mês)": str(valor_abast_mes),
-            "Valor de manutenções (Total)": str(valor_manut_total),
-            "Valor de manutenções (Ano)": str(valor_manut_ano),
-            "Valor de manutenções (Mês)": str(valor_manut_mes),
-            "Lucro total": str(lucro_total),
-            "Lucro ano": str(lucro_ano),
-            "Lucro mês": str(lucro_mes)
+        # CARD 1: Informações Técnicas (Emoji removido)
+        tech_data = {
+            "Placa": v.license_plate,
+            "Assentos": str(v.seats),
+            "Média Consumo": f"{v.avg_km_per_liter} km/L",
+            "Tanque": f"{v.fuel_tank_size} L",
+            "Compra": self.format_date(v.buy_date),
+            "Venda": self.format_date(v.sell_date) if v.sell_date else "Ativo"
         }
+        self.create_card(self.scrollable_frame, "Informações Técnicas", tech_data, 0, 0)
 
-        for i, (label_text, value_text) in enumerate(detalhes.items()):
-            tk.Label(
-                scrollable_frame,
-                text=label_text + ":",
-                font=("Segoe UI", 12, "bold"),
-                bg=self.bg_main,
-                fg=self.fg_text
-            ).grid(row=i, column=0, sticky="e", padx=(10, 10), pady=5)
+        # CARD 2: Operacional (Emoji removido)
+        ops_data = {
+            "Total de Viagens": str(self.trip_repo.count_trips_by_vehicle(id, "total")),
+            "Viagens (Ano)": str(self.trip_repo.count_trips_by_vehicle(id, "year")),
+            "Linhas Atuais": str(self.route_repo.count_routes_by_vehicle(id)),
+            "Abastecimentos": str(self.fuel_repo.count_by_vehicle(id, "total")),
+            "Manutenções": str(self.maintenance_repo.count_by_vehicle(id, "total"))
+        }
+        self.create_card(self.scrollable_frame, "Operacional", ops_data, 0, 1)
 
-            tk.Label(
-                scrollable_frame,
-                text=value_text,
-                font=("Segoe UI", 12),
-                bg=self.bg_button,
-                fg=self.fg_text,
-                anchor="w",
-                width=40,
-                padx=8,
-                pady=4
-            ).grid(row=i, column=1, sticky="w", pady=5)
+        # CARD 3: Financeiro (Emoji removido)
+        fuel_total = self.fuel_repo.sum_cost_by_vehicle(id, "total")
+        maint_total = self.maintenance_repo.sum_cost_by_vehicle(id, "total")
+        costs_data = {
+            "Total Abastecimento": f"R$ {fuel_total:,.2f}",
+            "Gasto Abast. (Mês)": f"R$ {self.fuel_repo.sum_cost_by_vehicle(id, 'month'):,.2f}",
+            "Total Manutenção": f"R$ {maint_total:,.2f}",
+            "Gasto Manut. (Mês)": f"R$ {self.maintenance_repo.sum_cost_by_vehicle(id, 'month'):,.2f}",
+            "Custo Operacional": f"R$ {(fuel_total + maint_total):,.2f}"
+        }
+        self.create_card(self.scrollable_frame, "Custos Acumulados", costs_data, 1, 0)
 
-        btn_voltar = ListRoundedButton(
-            self.parent,
-            text="Voltar",
-            command=self.voltar,
-            width=200,
-            height=50,
-            bg=self.bg_button,
-            fg=self.fg_text,
-            hover_bg=self.accent,
-            font=("Segoe UI", 11, "bold")
-        )
-        btn_voltar.pack(pady=20)
+        # CARD 4: Performance e Lucro (Emoji removido)
+        profit_total = self.vehicle_repo.get_vehicle_profit(id, "total")
+        profit_data = {
+            "Lucro Total": f"R$ {profit_total:,.2f}",
+            "Lucro (Ano)": f"R$ {self.vehicle_repo.get_vehicle_profit(id, 'year'):,.2f}",
+            "Lucro (Mês)": f"R$ {self.vehicle_repo.get_vehicle_profit(id, 'month'):,.2f}",
+            "Margem Estimada": "Ver Relatórios"
+        }
+        card_lucro = self.create_card(self.scrollable_frame, "Resultado Financeiro", profit_data, 1, 1)
+
+        # Manter o destaque visual do lucro
+        for child in card_lucro.winfo_children():
+            if isinstance(child, tk.Frame):
+                labels = child.winfo_children()
+                if len(labels) > 1 and labels[0].cget("text") == "Lucro Total":
+                    labels[1].configure(fg="#4cd964", font=("Segoe UI", 12, "bold"))
 
     def format_date(self, date_value):
-        if isinstance(date_value, str):
-            try:
-                date_obj = datetime.strptime(date_value, "%Y-%m-%d")
-                return date_obj.strftime("%d/%m/%Y")
-            except ValueError:
-                return date_value
-        return str(date_value)
+        if not date_value or date_value in ["None", ""]: return "-"
+        try:
+            return datetime.strptime(date_value, "%Y-%m-%d").strftime("%d/%m/%Y")
+        except:
+            return str(date_value)
 
     def voltar(self):
+        self.parent.unbind_all("<MouseWheel>")
         from app.interface.vehicle.interface_veiculo import InterfaceListVehicles
-        interface = InterfaceListVehicles(self.parent, self.db_path)
-        interface.show()
+        InterfaceListVehicles(self.parent, self.db_path).show()

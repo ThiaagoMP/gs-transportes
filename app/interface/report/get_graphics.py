@@ -1,3 +1,6 @@
+import tkinter as tk
+from tkinter import ttk
+
 class GetGraphics:
     def __init__(self, graphics):
         self.graphics = graphics
@@ -21,84 +24,68 @@ class GetGraphics:
         figs = []
         descriptions = []
 
-        print("\n========== DEBUG ENTRADA DE DADOS ==========")
-        print("lucros_por_mes:", lucros_por_mes)
-        print("receita_por_linha:", receita_por_linha)
-        print("consumo_por_veiculo:", consumo_por_veiculo)
-        print("custo_por_km:", custo_por_km)
-        print("lucro_por_veiculo:", lucro_por_veiculo)
-        print("lucro_por_motorista:", lucro_por_motorista)
-        print("gastos_por_veiculo:", gastos_por_veiculo)
-        print("despesa_por_categoria:", despesa_por_categoria)
-        print("============================================\n")
-
         def add(label, description, fig):
             if fig is not None:
                 figs.append(fig)
                 descriptions.append(description)
-                print(f"-> {label}: OK")
-            else:
-                print(f"-> {label}: ERRO (fig None)")
+
+        def safe_extract(data_dict):
+            if not data_dict or not isinstance(data_dict, dict):
+                return [], []
+            keys = list(data_dict.keys())
+            values = []
+            for k in keys:
+                try:
+                    values.append(float(data_dict[k]))
+                except (ValueError, TypeError):
+                    values.append(0.0)
+            return keys, values
 
         add(
-            "Gráfico Fluxo Mensal",
+            "Fluxo mensal",
             "Apresenta o lucro mensal ao longo do período analisado, "
             "permitindo identificar meses com melhor e pior desempenho.",
             self.graphics.bar_monthly_profit(lucros_por_mes)
         )
 
         add(
-            "Pizza Receita por Linha",
-            "Distribuição percentual da receita total entre as linhas/rotas.",
+            "Receita por linha",
+            "Distribuição percentual da receita total entre as linhas e rotas.",
             self.graphics.plot_revenue_by_route_pie(receita_por_linha)
         )
 
+        c_keys, c_values = safe_extract(consumo_por_veiculo)
         add(
-            "Consumo Combustível",
+            "Consumo de combustível",
             "Consumo médio de combustível por veículo, útil para análise de eficiência.",
-            self.graphics.bar_consumo_combustivel(
-                list(consumo_por_veiculo.keys()) if consumo_por_veiculo else [],
-                [float(consumo_por_veiculo[k]) for k in consumo_por_veiculo] if consumo_por_veiculo else []
-            )
+            self.graphics.bar_consumo_combustivel(c_keys, c_values)
         )
 
+        ckm_keys, ckm_values = safe_extract(custo_por_km)
         add(
-            "Custo por KM",
+            "Custo por quilômetro",
             "Custo médio por quilômetro rodado, considerando despesas operacionais.",
-            self.graphics.bar_custo_por_km(
-                list(custo_por_km.keys()) if custo_por_km else [],
-                [float(custo_por_km[k]) for k in custo_por_km] if custo_por_km else []
-            )
+            self.graphics.bar_custo_por_km(ckm_keys, ckm_values)
         )
 
+        lv_keys, lv_values = safe_extract(lucro_por_veiculo)
         add(
-            "Lucro por Veículo",
-            "Comparação do lucro gerado por cada veículo da frota.",
-            self.graphics.bar_lucro_por_veiculo(
-                list(lucro_por_veiculo.keys()) if lucro_por_veiculo else [],
-                [float(lucro_por_veiculo[k]) for k in lucro_por_veiculo] if lucro_por_veiculo else []
-            )
+            "Lucro por veículo",
+            "Comparação do lucro gerado por cada veículo da frota no período.",
+            self.graphics.bar_lucro_por_veiculo(lv_keys, lv_values)
         )
 
+        lm_keys, lm_values = safe_extract(lucro_por_motorista)
         add(
-            "Lucro por Motorista",
+            "Lucro por motorista",
             "Lucro total associado a cada motorista no período analisado.",
-            self.graphics.bar_lucro_por_motorista(
-                list(lucro_por_motorista.keys()) if lucro_por_motorista else [],
-                [float(lucro_por_motorista[k]) for k in lucro_por_motorista] if lucro_por_motorista else []
-            )
+            self.graphics.bar_lucro_por_motorista(lm_keys, lm_values)
         )
 
         add(
-            "Pizza Lucro por Veículo",
-            "Participação percentual de cada veículo no lucro total.",
+            "Participação no lucro",
+            "Participação percentual de cada veículo no lucro total acumulado.",
             self.graphics.pie_lucro_por_veiculo(lucro_por_veiculo)
         )
 
-        print(f"\n========== TOTAL GERADO: {len(figs)} gráficos ==========\n")
-
         return figs, descriptions
-
-
-
-

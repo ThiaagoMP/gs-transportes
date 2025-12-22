@@ -1,6 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 from datetime import datetime
 
 from app.models.route_driver import RouteDriver
@@ -13,6 +12,7 @@ from app.repositories.student_repository import StudentRepository
 from app.repositories.route_student_repository import RouteStudentRepository
 from app.models.route_student import RouteStudent
 from app.components.list_rounded_button import ListRoundedButton
+
 
 class InterfaceEditarLinha:
     def __init__(self, parent, db_path, route_id):
@@ -28,216 +28,181 @@ class InterfaceEditarLinha:
 
         self.bg_main = "#1c1c1e"
         self.bg_button = "#3a3f47"
+        self.bg_field = "#2c2c2e"
         self.fg_text = "#ffffff"
         self.accent = "#ff7f32"
 
-        self.font_title = ("Segoe UI", 26, "bold")
-        self.font_label = ("Segoe UI", 14)
-        self.font_entry = ("Segoe UI", 12)
-        self.font_button = ("Segoe UI", 10)
+        self.font_title = ("Segoe UI", 22, "bold")
+        self.font_label = ("Segoe UI", 11)
+        self.font_entry = ("Segoe UI", 11)
+        self.font_button = ("Segoe UI", 9, "bold")
 
     def show(self):
         route = self.route_repo.get_by_id(self.route_id)
         if not route:
-            messagebox.showerror("Erro", "Linha não encontrada.")
+            messagebox.showerror("Erro", "Linha nao encontrada.")
             return
 
         for widget in self.parent.winfo_children():
             widget.destroy()
 
-        tk.Label(self.parent, text="Editar Linha", font=self.font_title, bg=self.bg_main, fg=self.accent).pack(pady=25)
+        self.parent.configure(bg=self.bg_main)
+
+        tk.Label(self.parent, text="EDITAR LINHA", font=self.font_title, bg=self.bg_main, fg=self.accent).pack(
+            pady=(15, 10))
 
         main_frame = tk.Frame(self.parent, bg=self.bg_main)
-        main_frame.pack(pady=10, padx=(350, 0), anchor="nw")
-        main_frame.columnconfigure(0, weight=1)
+        main_frame.pack(fill="both", expand=True)
 
-        sub_frame = tk.Frame(main_frame, bg=self.bg_main)
-        sub_frame.grid(row=0, column=0)
+        container_form = tk.Frame(main_frame, bg=self.bg_main)
+        container_form.pack(anchor="center")
 
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("TLabel", font=self.font_label, background=self.bg_main, foreground=self.fg_text)
-        style.configure("TEntry", font=self.font_entry, padding=6, fieldbackground=self.bg_button, foreground=self.fg_text)
-        style.configure("TButton", font=self.font_button, padding=10,
-                        background=self.bg_button, foreground=self.fg_text)
-        style.map("TButton",
-                  background=[("active", self.accent)],
-                  foreground=[("active", self.fg_text)])
-        style.configure("TCheckbutton", font=self.font_entry, background=self.bg_main, foreground=self.fg_text)
-        style.map("TCheckbutton",
-                  background=[("active", self.bg_button)],
-                  foreground=[("active", self.fg_text)])
-        style.configure("TCombobox", fieldbackground=self.bg_button, background=self.bg_button, foreground=self.fg_text, arrowcolor=self.fg_text)
+        style.configure("TEntry", font=self.font_entry, fieldbackground=self.bg_field, foreground=self.fg_text,
+                        borderwidth=0)
+        style.configure("TCombobox", fieldbackground=self.bg_field, background=self.bg_field, foreground=self.fg_text,
+                        arrowcolor=self.fg_text)
+        style.map("TCombobox", fieldbackground=[("readonly", self.bg_field)], foreground=[("readonly", self.fg_text)])
 
-        fields_frame = tk.Frame(sub_frame, bg=self.bg_main)
+        fields_frame = tk.Frame(container_form, bg=self.bg_main)
         fields_frame.pack(fill="x", padx=10, pady=5)
 
-        ttk.Label(fields_frame, text="Veículo*:").grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        ttk.Label(fields_frame, text="Veiculo*:").grid(row=0, column=0, sticky="e", padx=5, pady=3)
         vehicles = self.vehicle_repo.get_all()
         vehicle_options = [f"{v.name} (ID: {v.vehicle_id})" for v in vehicles if v.vehicle_id]
-        self.vehicle_combobox = ttk.Combobox(fields_frame, values=vehicle_options, width=25, state="readonly", style="TCombobox")
-        self.vehicle_combobox.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-        vehicle_selected = next((v for v in vehicle_options if str(route.vehicle_id) in v), vehicle_options[0] if vehicle_options else "")
-        self.vehicle_combobox.set(vehicle_selected)
+        self.vehicle_combobox = ttk.Combobox(fields_frame, values=vehicle_options, width=32, state="readonly",
+                                             style="TCombobox")
+        self.vehicle_combobox.grid(row=0, column=1, padx=5, pady=3, sticky="w")
 
-        ttk.Label(fields_frame, text="Km Médio*:").grid(row=1, column=0, sticky="e", padx=5, pady=5)
-        avg_km_entry = ttk.Entry(fields_frame, width=25, validate="key", validatecommand=(self.parent.register(self.validate_decimal), "%P"))
-        avg_km_entry.insert(0, str(route.avg_km))
-        avg_km_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+        v_sel = next((v for v in vehicle_options if f"ID: {route.vehicle_id})" in v), "")
+        if v_sel: self.vehicle_combobox.set(v_sel)
 
-        ttk.Label(fields_frame, text="Período*:").grid(row=2, column=0, sticky="e", padx=5, pady=5)
-        period_options = ["Matutino", "Vespertino", "Noturno", "Integral"]
-        self.period_combobox = ttk.Combobox(fields_frame, values=period_options, width=25, state="readonly", style="TCombobox")
-        self.period_combobox.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+        ttk.Label(fields_frame, text="Km Medio*:").grid(row=1, column=0, sticky="e", padx=5, pady=3)
+        self.avg_km_entry = tk.Entry(fields_frame, width=35, font=self.font_entry, bg=self.bg_field, fg=self.fg_text,
+                                     relief="flat", borderwidth=0, insertbackground=self.fg_text)
+        self.avg_km_entry.insert(0, str(route.avg_km))
+        self.avg_km_entry.grid(row=1, column=1, padx=5, pady=3, sticky="w", ipady=3)
+
+        ttk.Label(fields_frame, text="Periodo*:").grid(row=2, column=0, sticky="e", padx=5, pady=3)
+        p_opts = ["Matutino", "Vespertino", "Noturno", "Integral"]
+        self.period_combobox = ttk.Combobox(fields_frame, values=p_opts, width=32, state="readonly", style="TCombobox")
+        self.period_combobox.grid(row=2, column=1, padx=5, pady=3, sticky="w")
         self.period_combobox.set(route.period)
 
-        ttk.Label(fields_frame, text="Tempo Médio (min)*:").grid(row=3, column=0, sticky="e", padx=5, pady=5)
-        avg_time_minutes_entry = ttk.Entry(fields_frame, width=25, validate="key", validatecommand=(self.parent.register(self.validate_number), "%P"))
-        avg_time_minutes_entry.insert(0, str(route.avg_time_minutes))
-        avg_time_minutes_entry.grid(row=3, column=1, padx=5, pady=5, sticky="w")
+        ttk.Label(fields_frame, text="Tempo (min)*:").grid(row=3, column=0, sticky="e", padx=5, pady=3)
+        self.avg_time_entry = tk.Entry(fields_frame, width=35, font=self.font_entry, bg=self.bg_field, fg=self.fg_text,
+                                       relief="flat", borderwidth=0, insertbackground=self.fg_text)
+        self.avg_time_entry.insert(0, str(route.avg_time_minutes))
+        self.avg_time_entry.grid(row=3, column=1, padx=5, pady=3, sticky="w", ipady=3)
 
-        ttk.Label(fields_frame, text="Nome*:").grid(row=4, column=0, sticky="e", padx=5, pady=5)
-        name_entry = ttk.Entry(fields_frame, width=25)
-        name_entry.insert(0, route.name)
-        name_entry.grid(row=4, column=1, padx=5, pady=5, sticky="w")
+        ttk.Label(fields_frame, text="Nome*:").grid(row=4, column=0, sticky="e", padx=5, pady=3)
+        self.name_entry = tk.Entry(fields_frame, width=35, font=self.font_entry, bg=self.bg_field, fg=self.fg_text,
+                                   relief="flat", borderwidth=0, insertbackground=self.fg_text)
+        self.name_entry.insert(0, route.name)
+        self.name_entry.grid(row=4, column=1, padx=5, pady=3, sticky="w", ipady=3)
 
-        ttk.Label(fields_frame, text="Valor do Contrato (R$)*:").grid(row=5, column=0, sticky="e", padx=5, pady=5)
-        contract_value_entry = ttk.Entry(fields_frame, width=25, validate="key", validatecommand=(self.parent.register(self.validate_decimal), "%P"))
-        contract_value_entry.insert(0, str(route.contract_value))
-        contract_value_entry.grid(row=5, column=1, padx=5, pady=5, sticky="w")
+        ttk.Label(fields_frame, text="Contrato (R$)*:").grid(row=5, column=0, sticky="e", padx=5, pady=3)
+        self.contract_entry = tk.Entry(fields_frame, width=35, font=self.font_entry, bg=self.bg_field, fg=self.fg_text,
+                                       relief="flat", borderwidth=0, insertbackground=self.fg_text)
+        self.contract_entry.insert(0, str(route.contract_value))
+        self.contract_entry.grid(row=5, column=1, padx=5, pady=3, sticky="w", ipady=3)
 
-        ttk.Label(fields_frame, text="Ativo*:").grid(row=6, column=0, sticky="e", padx=5, pady=5)
+        ttk.Label(fields_frame, text="Ativo:").grid(row=6, column=0, sticky="e", padx=5, pady=3)
         active_var = tk.BooleanVar(value=bool(route.active))
-        active_check = ttk.Checkbutton(fields_frame, variable=active_var, style="TCheckbutton", text="Sim")
-        active_check.grid(row=6, column=1, padx=5, pady=5, sticky="w")
+        tk.Checkbutton(fields_frame, variable=active_var, bg=self.bg_main, fg=self.fg_text, selectcolor=self.bg_field,
+                       activebackground=self.bg_main, activeforeground=self.fg_text, text="Sim",
+                       font=self.font_entry).grid(row=6, column=1, padx=5, pady=3, sticky="w")
 
-        ListRoundedButton(fields_frame, text="Salvar",
-            command=lambda: self.save_linha(
-                self.vehicle_combobox, avg_km_entry, self.period_combobox,
-                avg_time_minutes_entry, name_entry, contract_value_entry, active_var),
-            bg=self.bg_button, fg=self.fg_text, font=self.font_button
-        ).grid(row=0, column=7, sticky="e", padx=20, pady=5)
+        lists_frame = tk.Frame(container_form, bg=self.bg_main)
+        lists_frame.pack(fill="x", padx=10, pady=10)
 
-        drivers_students_frame = tk.Frame(sub_frame, bg=self.bg_main)
-        drivers_students_frame.pack(fill="x", padx=10, pady=5)
-
-        drivers_frame = tk.LabelFrame(drivers_students_frame, text="Motoristas", font=self.font_label, bg=self.bg_main, fg=self.fg_text)
-        drivers_frame.pack(side="left", fill="both", expand=True, padx=5, pady=5)
-
-        canvas_drivers = tk.Canvas(drivers_frame, bg=self.bg_main, width=200)
-        scrollbar_drivers = tk.Scrollbar(drivers_frame, orient="vertical", command=canvas_drivers.yview)
-        scrollable_frame_drivers = tk.Frame(canvas_drivers, bg=self.bg_main)
-
-        scrollable_frame_drivers.bind("<Configure>", lambda e: canvas_drivers.configure(scrollregion=canvas_drivers.bbox("all")))
-        canvas_drivers.create_window((0, 0), window=scrollable_frame_drivers, anchor="nw")
-        canvas_drivers.configure(yscrollcommand=scrollbar_drivers.set)
-        canvas_drivers.pack(side="left", fill="both", expand=True)
-        scrollbar_drivers.pack(side="right", fill="y")
-
-        self.driver_vars = {}
-        drivers = self.driver_repo.get_all()
-        active_drivers = [d for d in drivers if not d.end_date]
         route_drivers = self.route_driver_repo.get_by_route_id(self.route_id)
-        selected_driver_ids = {rd.driver_id for rd in route_drivers} if route_drivers else set()
-        for i, driver in enumerate(active_drivers):
-            if driver.driver_id:
-                var = tk.BooleanVar(value=driver.driver_id in selected_driver_ids)
-                self.driver_vars[driver.driver_id] = var
-                chk = tk.Checkbutton(scrollable_frame_drivers, text=f"{driver.name} (ID: {driver.driver_id})",
-                                     variable=var, bg=self.bg_main, fg=self.fg_text,
-                                     activebackground=self.bg_button, selectcolor=self.bg_button, wraplength=180)
-                chk.grid(row=i, column=0, padx=5, pady=2, sticky="w")
+        sel_driver_ids = {rd.driver_id for rd in route_drivers} if route_drivers else set()
 
-        students_frame = tk.LabelFrame(drivers_students_frame, text="Alunos", font=self.font_label, bg=self.bg_main, fg=self.fg_text)
-        students_frame.pack(side="left", fill="both", expand=True, padx=5, pady=5)
-
-        canvas_students = tk.Canvas(students_frame, bg=self.bg_main, width=200)
-        scrollbar_students = tk.Scrollbar(students_frame, orient="vertical", command=canvas_students.yview)
-        scrollable_frame_students = tk.Frame(canvas_students, bg=self.bg_main)
-
-        scrollable_frame_students.bind("<Configure>", lambda e: canvas_students.configure(scrollregion=canvas_students.bbox("all")))
-        canvas_students.create_window((0, 0), window=scrollable_frame_students, anchor="nw")
-        canvas_students.configure(yscrollcommand=scrollbar_students.set)
-        canvas_students.pack(side="left", fill="both", expand=True)
-        scrollbar_students.pack(side="right", fill="y")
-
-        self.student_vars = {}
-        students = self.student_repo.get_all()
         route_students = self.route_student_repo.get_students_by_route_id(self.route_id)
-        selected_student_ids = {rs.student_id for rs in route_students if rs.end_date is None}
-        for i, student in enumerate(students):
-            if student.student_id:
-                var = tk.BooleanVar(value=student.student_id in selected_student_ids)
-                self.student_vars[student.student_id] = var
-                chk = tk.Checkbutton(scrollable_frame_students, text=f"{student.name} (ID: {student.student_id})",
-                                     variable=var, bg=self.bg_main, fg=self.fg_text,
-                                     activebackground=self.bg_button, selectcolor=self.bg_button, wraplength=180)
-                chk.grid(row=i, column=0, padx=5, pady=2, sticky="w")
+        sel_student_ids = {rs.student_id for rs in route_students if rs.end_date is None}
 
-        ttk.Label(sub_frame, text="* Campos obrigatórios", font=("Segoe UI", 12, "italic"), foreground=self.fg_text).pack(pady=15)
+        for title, repo_get, vars_dict, selected_ids in [
+            ("MOTORISTAS", self.driver_repo.get_all, "driver_vars", sel_driver_ids),
+            ("ALUNOS", self.student_repo.get_all, "student_vars", sel_student_ids)
+        ]:
+            frame = tk.LabelFrame(lists_frame, text=title, font=("Segoe UI", 9, "bold"), bg=self.bg_main,
+                                  fg=self.accent, borderwidth=1, relief="flat")
+            frame.pack(side="left", fill="both", expand=True, padx=5)
 
-    def validate_number(self, P):
-        if not P:
-            return True
-        return all(c.isdigit() for c in P)
+            canvas = tk.Canvas(frame, bg=self.bg_main, width=200, height=100, highlightthickness=0)
+            scrollbar = tk.Scrollbar(frame, orient="vertical", command=canvas.yview)
+            scroll_f = tk.Frame(canvas, bg=self.bg_main)
 
-    def validate_decimal(self, P):
-        if not P:
-            return True
-        for c in P:
-            if not (c.isdigit() or c in ".,"):
-                return False
-        P = P.replace(',', '.')
-        return P.count('.') <= 1
+            scroll_f.bind("<Configure>", lambda e, c=canvas: c.configure(scrollregion=c.bbox("all")))
+            canvas.create_window((0, 0), window=scroll_f, anchor="nw")
+            canvas.configure(yscrollcommand=scrollbar.set)
+            canvas.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
 
-    def save_linha(self, vehicle_combobox, avg_km_entry, period_combobox, avg_time_minutes_entry, name_entry, contract_value_entry, active_var):
-        vehicle_text = vehicle_combobox.get()
-        vehicle_id = int(vehicle_text.split("ID: ")[1].split(")")[0]) if vehicle_text else 0
-        avg_km = float(avg_km_entry.get().replace(',', '.') or 0.0)
-        period = period_combobox.get().strip()
-        avg_time_minutes = int(avg_time_minutes_entry.get() or 0)
-        name = name_entry.get().strip()
-        contract_value = float(contract_value_entry.get().replace(',', '.') or 0.0)
-        active = 1 if active_var.get() else 0
+            res_dict = {}
+            items = repo_get()
+            for item in items:
+                iid = item.driver_id if title == "MOTORISTAS" else item.student_id
+                if title == "MOTORISTAS" and item.end_date and iid not in selected_ids: continue
+                v = tk.BooleanVar(value=iid in selected_ids)
+                res_dict[iid] = v
+                tk.Checkbutton(scroll_f, text=item.name.upper(), variable=v, bg=self.bg_main, fg=self.fg_text,
+                               activebackground=self.bg_button, selectcolor=self.bg_button, font=("Segoe UI", 8)).pack(
+                    anchor="w", padx=2)
+            setattr(self, vars_dict, res_dict)
 
-        if not all([vehicle_id, avg_km, period, avg_time_minutes, name, contract_value]):
-            messagebox.showerror("Erro", "Preencha todos os campos obrigatórios.")
-            return
+        btn_container = tk.Frame(container_form, bg=self.bg_main)
+        btn_container.pack(pady=15)
 
+        ListRoundedButton(btn_container, text="Salvar alterações", command=lambda: self.save_linha(active_var),
+                          bg=self.accent, fg=self.fg_text, width=180, height=40).pack(side="left", padx=10)
+        ListRoundedButton(btn_container, text="Voltar", command=self.back, bg=self.bg_button, fg=self.fg_text,
+                          width=120, height=40).pack(side="left", padx=10)
+
+    def save_linha(self, active_var):
+        v_text = self.vehicle_combobox.get()
         try:
-            route = Route(self.route_id, vehicle_id, avg_km, period, avg_time_minutes, name, active, contract_value)
+            v_id = int(v_text.split("ID: ")[1].split(")")[0]) if "ID: " in v_text else 0
+            avg_km = float(self.avg_km_entry.get().replace(',', '.'))
+            avg_time = int(self.avg_time_entry.get())
+            val = float(self.contract_entry.get().replace(',', '.'))
+            name = self.name_entry.get().strip()
+            period = self.vehicle_combobox.get()
+
+            if not all([v_id, name]):
+                messagebox.showerror("Erro", "Preencha os campos obrigatórios.")
+                return
+
+            route = Route(self.route_id, v_id, avg_km, self.period_combobox.get(), avg_time, name,
+                          1 if active_var.get() else 0, val)
+
             if self.route_repo.update(route):
                 self.route_driver_repo.delete_by_route_id(self.route_id)
-                for driver_id, var in self.driver_vars.items():
-                    if var.get():
-                        route_driver = RouteDriver(self.route_id, driver_id)
-                        self.route_driver_repo.add(route_driver)
+                for d_id, var in self.driver_vars.items():
+                    if var.get(): self.route_driver_repo.add(RouteDriver(self.route_id, d_id))
 
-                all_route_students = self.route_student_repo.get_students_by_route_id(self.route_id)
-                current_active_student_ids = {rs.student_id for rs in all_route_students if rs.end_date is None}
-                selected_student_ids = {student_id for student_id, var in self.student_vars.items() if var.get()}
+                all_rs = self.route_student_repo.get_students_by_route_id(self.route_id)
+                curr_active = {rs.student_id for rs in all_rs if rs.end_date is None}
+                sel_ids = {s_id for s_id, var in self.student_vars.items() if var.get()}
 
-                for student_id in current_active_student_ids - selected_student_ids:
-                    self.route_student_repo.update_end_date(self.route_id, student_id, datetime.now().strftime('%Y-%m-%d'))
-
-                for student_id in selected_student_ids - current_active_student_ids:
-                    existing_rs = next((rs for rs in all_route_students if rs.student_id == student_id), None)
-                    if existing_rs:
-                        self.route_student_repo.update_end_date(self.route_id, student_id, None)
+                for s_id in curr_active - sel_ids:
+                    self.route_student_repo.update_end_date(self.route_id, s_id, datetime.now().strftime('%Y-%m-%d'))
+                for s_id in sel_ids - curr_active:
+                    existing = next((rs for rs in all_rs if rs.student_id == s_id), None)
+                    if existing:
+                        self.route_student_repo.update_end_date(self.route_id, s_id, None)
                     else:
-                        route_student = RouteStudent(self.route_id, student_id, datetime.now().strftime('%Y-%m-%d'), None)
-                        success = self.route_student_repo.add(route_student)
-                        if not success:
-                            self.route_student_repo.update_end_date(self.route_id, student_id, None)
+                        self.route_student_repo.add(
+                            RouteStudent(self.route_id, s_id, datetime.now().strftime('%Y-%m-%d'), None))
 
-                messagebox.showinfo("Sucesso", f"Linha atualizada com ID {self.route_id} e motoristas/alunos associados!")
+                messagebox.showinfo("Sucesso", "Linha atualizada!")
                 self.back()
-            else:
-                messagebox.showerror("Erro", "Falha ao atualizar a linha.")
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro inesperado: {str(e)}")
+            messagebox.showerror("Erro", str(e))
 
     def back(self):
         from app.interface.route.interface_linha import InterfaceLinha
-        interface = InterfaceLinha(self.parent, self.db_path)
-        interface.show()
+        InterfaceLinha(self.parent, self.db_path).show()

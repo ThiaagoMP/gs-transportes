@@ -3,89 +3,120 @@ from tkinter import ttk
 from tkinter import messagebox
 from datetime import datetime
 
+# Mantendo seus imports originais
 from app.components.list_rounded_button import ListRoundedButton
 from app.repositories.vehicle_repository import VehicleRepository
 from app.interface.vehicle.interface_cadastrar_veiculo import InterfaceCadastrarVeiculo
 from app.interface.vehicle.interface_editar_veiculo import InterfaceEditarVeiculo
+
 
 class InterfaceListVehicles:
     def __init__(self, parent, db_path):
         self.parent = parent
         self.db_path = db_path
         self.vehicle_repo = VehicleRepository(self.db_path)
+
         self.bg_main = "#1c1c1e"
         self.bg_button = "#3a3f47"
         self.fg_text = "#ffffff"
         self.accent = "#ff7f32"
 
     def show(self):
+        # CORREÇÃO: Limpa absolutamente tudo antes de começar
         for widget in self.parent.winfo_children():
             widget.destroy()
+
         self.parent.configure(bg=self.bg_main)
 
+        # Cabeçalho
+        self.header = tk.Frame(self.parent, bg=self.bg_main, height=60)
+        self.header.pack(fill="x")
+        self.header.pack_propagate(False)
+
         tk.Label(
-            self.parent,
+            self.header,
             text="Veículos",
-            font=("Segoe UI", 26, "bold"),
+            font=("Segoe UI", 22, "bold"),
             bg=self.bg_main,
             fg=self.accent,
             anchor="w"
-        ).pack(pady=(20, 10), padx=25, fill="x")
+        ).place(relx=0.02, rely=0.5, anchor="w")
 
-        main_frame = tk.Frame(self.parent, bg=self.bg_main)
-        main_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        self.main_frame = tk.Frame(self.parent, bg=self.bg_main)
+        self.main_frame.pack(fill="both", expand=True)
 
-        list_frame = tk.Frame(main_frame, bg=self.bg_main)
-        list_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        self.build_table()
+        self.build_buttons()
+        self.load_vehicles()
+
+    def build_table(self):
+        list_frame = tk.Frame(self.main_frame, bg=self.bg_main)
+        list_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         style = ttk.Style()
         style.theme_use("clam")
         style.configure(
             "Treeview",
-            font=("Segoe UI", 12),
+            font=("Segoe UI", 11),
             background=self.bg_main,
             fieldbackground=self.bg_main,
             foreground=self.fg_text,
-            rowheight=32
+            rowheight=30
         )
         style.configure(
             "Treeview.Heading",
-            font=("Segoe UI", 13, "bold"),
+            font=("Segoe UI", 11, "bold"),
             background=self.accent,
             foreground="#ffffff"
         )
-        style.map("Treeview",
-                  background=[("selected", "#333333")],
-                  foreground=[("selected", "#ffffff")])
+        style.map(
+            "Treeview",
+            background=[("selected", "#333333")],
+            foreground=[("selected", "#ffffff")]
+        )
 
-        tree_frame = tk.Frame(list_frame, bg=self.bg_main)
-        tree_frame.pack(fill="both", expand=True)
+        # Frame para conter a Treeview e as Scrollbars
+        tree_container = tk.Frame(list_frame, bg=self.bg_main)
+        tree_container.pack(fill="both", expand=True)
 
-        y_scroll = ttk.Scrollbar(tree_frame, orient="vertical")
+        # Scrollbars
+        y_scroll = ttk.Scrollbar(tree_container, orient="vertical")
         y_scroll.pack(side="right", fill="y")
 
+        x_scroll = ttk.Scrollbar(tree_container, orient="horizontal")
+        x_scroll.pack(side="bottom", fill="x")
+
         self.tree = ttk.Treeview(
-            tree_frame,
+            tree_container,
             columns=(
                 "Placa", "Nome", "Assentos", "Km/L", "Tanque (L)",
                 "Data Compra", "Data Venda", "Valor Compra",
                 "Valor Venda", "Ano Fabricação"
             ),
             show="headings",
-            height=15,
-            yscrollcommand=y_scroll.set
+            yscrollcommand=y_scroll.set,
+            xscrollcommand=x_scroll.set
         )
+
         y_scroll.config(command=self.tree.yview)
+        x_scroll.config(command=self.tree.xview)
         self.tree.pack(fill="both", expand=True)
 
+        # Configuração das colunas com largura mínima e permissão para esticar
         for col in self.tree["columns"]:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=130, anchor="center")
+            # minwidth permite que a barra horizontal apareça se a janela for muito pequena
+            self.tree.column(col, width=115, minwidth=100, anchor="center", stretch=True)
 
         self.tree.bind("<Double-1>", self.on_double_click)
 
-        button_frame = tk.Frame(list_frame, bg=self.bg_main)
-        button_frame.pack(pady=15)
+    def build_buttons(self):
+        # Frame que centraliza os botões e permite que eles respirem
+        button_container = tk.Frame(self.main_frame, bg=self.bg_main)
+        button_container.pack(fill="x", pady=15)
+
+        button_frame = tk.Frame(button_container, bg=self.bg_main)
+        button_frame.pack(expand=True)
 
         actions = [
             ("Cadastrar Veículo", self.cadastrar_veiculo),
@@ -96,145 +127,124 @@ class InterfaceListVehicles:
             ("Excluir Veículo", self.confirm_delete)
         ]
 
-        for text, cmd in actions:
+        for i, (text, cmd) in enumerate(actions):
             bg_color = "#f44336" if text.startswith("Excluir") else self.bg_button
+            # Reduzido largura de 210 para 165 e fonte para 10 para caber em telas menores
             btn = ListRoundedButton(
                 button_frame,
                 text=text,
                 command=cmd,
-                width=210,
-                height=50,
+                width=165,
+                height=45,
                 bg=bg_color,
                 fg=self.fg_text,
                 hover_bg=self.accent,
-                font=("Segoe UI", 11, "bold"),
+                font=("Segoe UI", 10, "bold"),
                 shadow=True
             )
-            btn.pack(side="left", padx=10, pady=6)
-
-        self.load_vehicles()
+            btn.grid(row=0, column=i, padx=5, pady=5)
 
     def load_vehicles(self):
         self.tree.delete(*self.tree.get_children())
         vehicles = self.vehicle_repo.get_all()
 
         def sort_key(vehicle):
-            buy_date = getattr(vehicle, 'buy_date', '')
-            if buy_date and isinstance(buy_date, str):
-                try:
-                    buy_date = datetime.strptime(buy_date, '%Y-%m-%d')
-                except ValueError:
-                    buy_date = datetime.min
-            else:
+            buy_date_str = getattr(vehicle, 'buy_date', '')
+            try:
+                buy_date = datetime.strptime(buy_date_str, '%Y-%m-%d') if buy_date_str else datetime.min
+            except Exception:
                 buy_date = datetime.min
             sell_date = getattr(vehicle, 'sell_date', None)
-            is_sold = sell_date not in [None, ""] and sell_date != "Não vendido"
+            is_sold = sell_date not in [None, "", "Não vendido"]
             return (is_sold, buy_date)
 
-        vehicles = sorted(vehicles, key=sort_key)
-
-        for vehicle in vehicles:
+        for vehicle in sorted(vehicles, key=sort_key):
             vehicle_id = getattr(vehicle, 'vehicle_id', None)
-            if vehicle_id is None or not str(vehicle_id).strip():
+            if not vehicle_id:
                 continue
 
-            buy_date = getattr(vehicle, 'buy_date', '') or ''
-            if buy_date and isinstance(buy_date, str):
-                buy_date = datetime.strptime(buy_date, '%Y-%m-%d').strftime('%d/%m/%Y')
+            buy_date = getattr(vehicle, 'buy_date', '')
+            if buy_date:
+                try:
+                    buy_date = datetime.strptime(buy_date, '%Y-%m-%d').strftime('%d/%m/%Y')
+                except:
+                    pass
+
             sell_date = getattr(vehicle, 'sell_date', None)
-            if sell_date and isinstance(sell_date, str):
-                sell_date = datetime.strptime(sell_date, '%Y-%m-%d').strftime('%d/%m/%Y')
-            elif sell_date is None:
-                sell_date = "Não vendido"
-
-            purchase_value = getattr(vehicle, 'purchase_value', None)
-            purchase_value_str = f"{float(purchase_value):.2f}" if purchase_value else "0.00"
-
-            sale_value = getattr(vehicle, 'sale_value', None)
-            sale_value_valid = sale_value is not None and isinstance(sale_value, (int, float, str)) and str(
-                sale_value).replace('.', '').isdigit()
-            sell_date_valid = sell_date not in ["Não vendido", None]
-
-            if sale_value_valid and not sell_date_valid or not sale_value_valid and sell_date_valid:
-                sale_value_str = "Não vendido"
-                sell_date = "Não vendido"
+            if sell_date and sell_date != "Não vendido":
+                try:
+                    sell_date = datetime.strptime(sell_date, '%Y-%m-%d').strftime('%d/%m/%Y')
+                except:
+                    pass
             else:
-                if sale_value_valid:
-                    sale_value_str = f"{float(sale_value):.2f}"
-                else:
-                    sale_value_str = "Não vendido"
+                sell_date = "Não vendido"
+
+            purchase_val = getattr(vehicle, 'purchase_value', 0)
+            sale_val = getattr(vehicle, 'sale_value', 0)
+
+            p_format = f"{float(purchase_val):.2f}" if purchase_val else "0.00"
+            s_format = f"{float(sale_val):.2f}" if (sale_val and sell_date != "Não vendido") else "Não vendido"
 
             self.tree.insert("", "end", iid=str(vehicle_id), values=(
                 getattr(vehicle, 'license_plate', ''),
                 getattr(vehicle, 'name', ''),
                 getattr(vehicle, 'seats', ''),
-                f"{float(getattr(vehicle, 'avg_km_per_liter', 0.0)):.1f}" if getattr(vehicle, 'avg_km_per_liter', None) else '0.0',
+                f"{float(getattr(vehicle, 'avg_km_per_liter', 0)):.1f}",
                 getattr(vehicle, 'fuel_tank_size', ''),
                 buy_date,
                 sell_date,
-                purchase_value_str,
-                sale_value_str,
+                p_format,
+                s_format,
                 getattr(vehicle, 'manufacturing_year', '')
             ))
 
     def cadastrar_veiculo(self):
-        interface = InterfaceCadastrarVeiculo(self.parent, self.db_path)
-        interface.show()
-
-    def confirm_delete(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Aviso", "Selecione um veículo para excluir.")
-            return
-        vehicle_id = int(selected_item[0])
-        vehicle_name = self.tree.item(vehicle_id, "values")[1]
-        if messagebox.askyesno("Confirmação", f"Deseja excluir o veículo '{vehicle_name}'?"):
-            if self.vehicle_repo.delete(vehicle_id):
-                messagebox.showinfo("Sucesso", f"Veículo '{vehicle_name}' excluído!")
-                self.load_vehicles()
-            else:
-                messagebox.showerror("Erro", "Falha ao excluir veículo.")
+        InterfaceCadastrarVeiculo(self.parent, self.db_path).show()
 
     def editar_veiculo(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Selecione um veículo para editar.")
             return
-        vehicle_id = int(selected_item[0])
-        interface = InterfaceEditarVeiculo(self.parent, self.db_path, vehicle_id)
-        interface.show()
+        InterfaceEditarVeiculo(self.parent, self.db_path, int(selected[0])).show()
+
+    def confirm_delete(self):
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Aviso", "Selecione um veículo para excluir.")
+            return
+        vehicle_id = int(selected[0])
+        name = self.tree.item(selected[0], "values")[1]
+        if messagebox.askyesno("Confirmação", f"Deseja excluir o veículo '{name}'?"):
+            if self.vehicle_repo.delete(vehicle_id):
+                self.load_vehicles()
 
     def adicionar_manutencao(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
+        selected = self.tree.selection()
+        if not selected:
             return
-        vehicle_id = int(selected_item[0])
-        vehicle_name = self.vehicle_repo.get_by_id(vehicle_id).name
+        vehicle_id = int(selected[0])
+        vehicle = self.vehicle_repo.get_by_id(vehicle_id)
         from app.interface.vehicle.interface_manutencao import InterfaceMaintenance
-        interface = InterfaceMaintenance(self.parent, self.db_path, vehicle_id, vehicle_name)
-        interface.show()
+        InterfaceMaintenance(self.parent, self.db_path, vehicle_id, vehicle.name).show()
 
     def adicionar_abastecimento(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
+        selected = self.tree.selection()
+        if not selected:
             return
-        vehicle_id = int(selected_item[0])
-        vehicle_name = self.vehicle_repo.get_by_id(vehicle_id).name
+        vehicle_id = int(selected[0])
+        vehicle = self.vehicle_repo.get_by_id(vehicle_id)
         from app.interface.vehicle.interface_abastecimento import InterfaceFueling
-        interface = InterfaceFueling(self.parent, self.db_path, vehicle_id, vehicle_name)
-        interface.show()
+        InterfaceFueling(self.parent, self.db_path, vehicle_id, vehicle.name).show()
 
     def vehicle_details(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
+        selected = self.tree.selection()
+        if not selected:
             return
-        vehicle_id = int(selected_item[0])
         from app.interface.vehicle.interface_vehicle_details import InterfaceVehicleDetails
-        interface = InterfaceVehicleDetails(self.parent, self.db_path, vehicle_id)
-        interface.show()
+        InterfaceVehicleDetails(self.parent, self.db_path, int(selected[0])).show()
 
     def on_double_click(self, event):
         item = self.tree.identify_row(event.y)
         if item:
-            vehicle_id = int(item)
-            interface = InterfaceEditarVeiculo(self.parent, self.db_path, vehicle_id)
-            interface.show()
+            InterfaceEditarVeiculo(self.parent, self.db_path, int(item)).show()
