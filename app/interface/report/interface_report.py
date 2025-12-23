@@ -339,13 +339,13 @@ class InterfaceRelatorio:
             c.drawCentredString(width / 2, height - 70, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
             c.line(50, height - 80, width - 50, height - 80)
 
-            for fig, desc in zip(figs, descriptions):
+            for idx, (fig, desc) in enumerate(zip(figs, descriptions)):
                 tmp = f"temp_plt_{idx}.png"
                 fig.savefig(tmp, bbox_inches="tight", dpi=100)
                 tmp_files.append(tmp)
 
                 c.setFont("Helvetica-Bold", 12)
-                c.drawString(50, height - 110, "Análise Técnica")
+                c.drawString(50, height - 110, f"Análise Técnica - Gráfico {idx + 1}")
 
                 p = Paragraph(desc, styles["Normal"])
                 p_w, p_h = p.wrap(width - 100, height)
@@ -355,7 +355,9 @@ class InterfaceRelatorio:
                 c.showPage()
 
             c.save()
-            for t in tmp_files: os.remove(t)
+            for t in tmp_files:
+                if os.path.exists(t):
+                    os.remove(t)
             messagebox.showinfo("Sucesso", "Relatório PDF gerado com sucesso.")
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao gerar PDF: {e}")
